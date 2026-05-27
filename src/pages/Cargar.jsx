@@ -313,7 +313,7 @@ function Cargar() {
         
         {/* ── Panel Carga ── */}
         <div className={`space-y-5 ${selectedFile ? "lg:col-span-3" : ""}`}>
-          <div style={{ borderRadius: "20px", border: "1px solid var(--color-border)", background: "var(--color-card)", padding: "24px", backdropFilter: "blur(12px)" }}>
+          <div style={{ position: "relative", zIndex: 50, borderRadius: "20px", border: "1px solid var(--color-border)", background: "var(--color-card)", padding: "24px", backdropFilter: "blur(12px)" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#A78BFA", marginBottom: "12px" }}>
               <Building2 size={16} /> Caja de Compensación evaluada
             </label>

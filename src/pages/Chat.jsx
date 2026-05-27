@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { sendChatMessage, getAuditorias } from "../services/auditService";
-import { MessageSquare, Sparkles, Send, Box } from "lucide-react";
+import { MessageSquare, Sparkles, Send, Box, ChevronDown } from "lucide-react";
 
 const quickQuestions = [
   "Validar cumplimiento Ley 21",
