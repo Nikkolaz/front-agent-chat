@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: .
+    container_name: camaras_front_end
+    ports:
+      - "5173:5173"
+    volumes:
+      # Sincroniza el código local para que se actualice en tiempo real sin reiniciar
+      - .:/app
+      # Evita sobreescribir los módulos instalados dentro del contenedor
+      - /app/node_modules
+    environment:
+      # Ayuda a Vite a detectar cambios de archivos en Windows a través de Docker
+      - CHOKIDAR_USEPOLLING=true
+    restart: unless-stopped
