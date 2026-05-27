@@ -14,9 +14,12 @@ const mockAuditResult = {
     "La auditoría simulada indica que la caja cumple con los límites establecidos. El porcentaje de gastos administrativos se mantiene por debajo del máximo permitido del 8%, y la cuota monetaria supera el mínimo requerido del 55%. Se recomienda mantener seguimiento mensual para detectar desviaciones tempranas.",
 };
 
-export async function auditFile(file) {
+export async function auditFile(file, caja) {
   const formData = new FormData();
   formData.append("file", file);
+  if (caja) {
+    formData.append("caja", caja);
+  }
 
   try {
     const response = await fetch(`${API_URL}/audit`, {

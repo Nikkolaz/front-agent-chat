@@ -95,7 +95,7 @@ function Cargar() {
     if (!selectedFile) return;
     setIsLoading(true); setError(""); setAuditResult(null); setShowReport(false);
     try {
-      const result = await auditFile(selectedFile);
+      const result = await auditFile(selectedFile, selectedCaja);
       setAuditResult(result);
     } catch {
       setError("No se pudo conectar con el backend. Verifica que el servicio esté activo.");
@@ -341,7 +341,7 @@ function Cargar() {
                   {CAJAS.map((c) => (
                     <button
                       key={c} type="button"
-                      onClick={() => { setSelectedCaja(c); setIsSelectOpen(false); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedCaja(c); setIsSelectOpen(false); }}
                       style={{
                         display: "block", width: "100%", textAlign: "left", padding: "10px 16px",
                         borderRadius: "8px", background: selectedCaja === c ? "rgba(124,58,237,0.15)" : "transparent",

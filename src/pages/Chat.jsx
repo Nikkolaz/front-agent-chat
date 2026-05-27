@@ -54,18 +54,18 @@ function Chat() {
 
     const respuesta = await sendChatMessage(textToSend, selectedCaja);
     const agentMessage = { role: "agent", text: respuesta };
-    
+
     setMessages((prev) => [...prev, agentMessage]);
     setIsLoading(false);
   };
 
   return (
     <section className="fade-in" style={{ display: "grid", gap: "24px", minHeight: "calc(100vh - 80px)", gridTemplateColumns: "1fr", ...({ "@media (min-width: 1280px)": { gridTemplateColumns: "360px 1fr" } }) }}>
-      
+
       {/* ── Sidebar Consultas ── */}
       <aside style={{ height: "max-content", borderRadius: "24px", border: "1px solid var(--color-border)", background: "var(--color-card)", padding: "32px", backdropFilter: "blur(20px)" }}>
         <p style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.25em", color: "#6366F1", marginBottom: "12px" }}>Asistente IA</p>
-        <h2 style={{ fontSize: "32px", fontWeight: 800, fontFamily: "var(--font-heading)", color: "#fff", lineHeight: 1.1 }}>Consulta<br/>asistida</h2>
+        <h2 style={{ fontSize: "32px", fontWeight: 800, fontFamily: "var(--font-heading)", color: "#fff", lineHeight: 1.1 }}>Consulta<br />asistida</h2>
         <p style={{ marginTop: "12px", fontSize: "14px", color: "#94A3B8" }}>Realice preguntas en lenguaje natural sobre cumplimiento, hallazgos e indicadores financieros.</p>
 
         <div style={{ marginTop: "32px" }}>
@@ -85,7 +85,7 @@ function Chat() {
               <span>{selectedCaja}</span>
               <ChevronDown size={18} color="#94A3B8" style={{ transform: isSelectOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }} />
             </button>
-            
+
             {isSelectOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 8px)", left: 0, width: "100%", zIndex: 50,
@@ -96,15 +96,15 @@ function Chat() {
                 {["Colsubsidio", "Cafam", "Comfandi", "Compensar", "Comfenalco"].map((c) => (
                   <button
                     key={c} type="button"
-                    onClick={() => { setSelectedCaja(c); setIsSelectOpen(false); }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedCaja(c); setIsSelectOpen(false); }}
                     style={{
                       display: "block", width: "100%", textAlign: "left", padding: "10px 16px",
                       borderRadius: "8px", background: selectedCaja === c ? "rgba(99,102,241,0.15)" : "transparent",
                       color: selectedCaja === c ? "#C7D2FE" : "#E2E8F0", fontSize: "14px", border: "none", cursor: "pointer",
                       transition: "background 150ms"
                     }}
-                    onMouseEnter={e => { if(selectedCaja !== c) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                    onMouseLeave={e => { if(selectedCaja !== c) e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={e => { if (selectedCaja !== c) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (selectedCaja !== c) e.currentTarget.style.background = "transparent"; }}
                   >
                     {c}
                   </button>
@@ -152,7 +152,7 @@ function Chat() {
 
       {/* ── Main Chat Window ── */}
       <div style={{ display: "flex", flexDirection: "column", minHeight: "650px", borderRadius: "24px", border: "1px solid var(--color-border)", background: "var(--color-card)", backdropFilter: "blur(20px)", overflow: "hidden" }}>
-        
+
         {/* Chat Header */}
         <div style={{ padding: "24px 32px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -206,18 +206,18 @@ function Chat() {
         {/* Chat Input */}
         <div style={{ padding: "24px 32px", borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(0,0,0,0.4)", padding: "8px 8px 8px 24px", transition: "border-color 200ms" }}
-               onFocus={e => e.currentTarget.style.borderColor = "#6366F1"} onBlur={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"}
+            onFocus={e => e.currentTarget.style.borderColor = "#6366F1"} onBlur={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"}
           >
             <input
-              value={message} onChange={e => setMessage(e.target.value)} onKeyDown={e => { if(e.key === "Enter") sendMessage(); }}
+              value={message} onChange={e => setMessage(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendMessage(); }}
               disabled={isLoading} placeholder="Pregúntale a AuditorIA sobre los indicadores..."
               style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "15px", outline: "none" }}
             />
             <button
               onClick={() => sendMessage()} disabled={isLoading || !message.trim()}
               style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "48px", width: "48px", borderRadius: "12px", background: "linear-gradient(135deg, #6366F1 0%, #7C3AED 100%)", color: "#fff", border: "none", cursor: isLoading || !message.trim() ? "not-allowed" : "pointer", opacity: isLoading || !message.trim() ? 0.5 : 1, transition: "all 200ms" }}
-              onMouseEnter={e => { if(!isLoading && message.trim()) { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.boxShadow = "0 8px 20px rgba(99,102,241,0.4)"; } }}
-              onMouseLeave={e => { if(!isLoading && message.trim()) { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "none"; } }}
+              onMouseEnter={e => { if (!isLoading && message.trim()) { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.boxShadow = "0 8px 20px rgba(99,102,241,0.4)"; } }}
+              onMouseLeave={e => { if (!isLoading && message.trim()) { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "none"; } }}
             >
               <Send size={20} style={{ marginLeft: "-2px" }} />
             </button>
