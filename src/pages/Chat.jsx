@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -36,14 +36,16 @@ function Chat() {
     loadLastCaja();
   }, []);
 
-  const chartData = allAuditorias
-    .filter((a) => a.nombre_ccf === selectedCaja)
-    .reverse()
-    .map((a) => ({
-      name: `M${a.mes}/${a.ano}`,
-      Administración: a.porcentaje_administracion,
-      Cuota: a.porcentaje_cuota_monetaria,
-    }));
+  const chartData = useMemo(() => {
+    return allAuditorias
+      .filter((a) => a.nombre_ccf === selectedCaja)
+      .reverse()
+      .map((a) => ({
+        name: `M${a.mes}/${a.ano}`,
+        Administración: a.porcentaje_administracion,
+        Cuota: a.porcentaje_cuota_monetaria,
+      }));
+  }, [allAuditorias, selectedCaja]);
 
   const sendMessage = async (textToSend = message) => {
     if (!textToSend.trim() || isLoading) return;
