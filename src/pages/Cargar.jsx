@@ -76,8 +76,8 @@ function Cargar() {
   const applyFile = (file) => {
     if (!file) return;
     const ext = file.name.split(".").pop().toLowerCase();
-    if (!["csv", "xlsx"].includes(ext)) {
-      setError("Formato no permitido. Solo se aceptan archivos .csv y .xlsx");
+    if (!["csv", "xlsx", "xml"].includes(ext)) {
+      setError("Formato no permitido. Solo se aceptan archivos .xml, .csv y .xlsx");
       return;
     }
     setSelectedFile(file);
@@ -97,8 +97,13 @@ function Cargar() {
     try {
       const result = await auditFile(selectedFile, selectedCaja);
       setAuditResult(result);
-    } catch {
-      setError("No se pudo conectar con el backend. Verifica que el servicio esté activo.");
+      // Si el backend extrajo el nombre real de la caja desde el XML, actualizar la UI
+      if (result.reporte_origen && result.reporte_origen.nombre_ccf) {
+        setSelectedCaja(result.reporte_origen.nombre_ccf);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("No se pudo conectar con el backend o hubo un error en la validación de los datos.");
     } finally {
       setIsLoading(false);
     }
@@ -359,7 +364,7 @@ function Cargar() {
             </div>
           </div>
 
-          <input ref={fileInputRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={handleFileChange} />
+          <input ref={fileInputRef} type="file" accept=".xml,.csv,.xlsx" style={{ display: "none" }} onChange={handleFileChange} />
 
           <div
             onClick={() => fileInputRef.current?.click()} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
@@ -382,7 +387,7 @@ function Cargar() {
                 </div>
                 <div style={{ textAlign: "center" }}>
                   <p style={{ fontSize: "18px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>{dragging ? "¡Suelta el archivo aquí!" : "Arrastra o haz clic para seleccionar"}</p>
-                  <p style={{ marginTop: "8px", fontSize: "14px", color: "#94A3B8" }}>Formatos: <span style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontFamily: "monospace" }}>.csv</span> y <span style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontFamily: "monospace" }}>.xlsx</span></p>
+                  <p style={{ marginTop: "8px", fontSize: "14px", color: "#94A3B8" }}>Formatos: <span style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontFamily: "monospace" }}>.xml</span>, <span style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontFamily: "monospace" }}>.csv</span> y <span style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontFamily: "monospace" }}>.xlsx</span></p>
                 </div>
               </>
             ) : (
