@@ -5,8 +5,30 @@ import { getAuditoriaById, sendChatMessage } from "../services/auditService";
 import {
   ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle2, Cpu,
   Send, Sparkles, Building2, CalendarDays, DollarSign,
-  TrendingUp, BarChart3, Loader2, MessageSquare,
+  TrendingUp, BarChart3, Loader2, MessageSquare, Download,
 } from "lucide-react";
+
+/* ─── Generador de SVG Donut ─────────────────────────── */
+function createDonutSvg(value, max, colorOk, colorFail, isOk) {
+  const size = 120;
+  const strokeWidth = 14;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const pct = Math.min((value / max) * 100, 100);
+  const strokeDashoffset = circumference - (pct / 100) * circumference;
+  const color = isOk ? colorOk : colorFail;
+
+  return `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="#e2e8f0" stroke-width="${strokeWidth}" />
+      <circle cx="${size/2}" cy="${size/2}" r="${radius}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" 
+              stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}" 
+              stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})" />
+      <text x="50%" y="45%" text-anchor="middle" dy=".3em" font-size="24" font-weight="800" fill="#0f172a">${value}%</text>
+      <text x="50%" y="65%" text-anchor="middle" dy=".3em" font-size="10" font-weight="600" fill="#64748b" text-transform="uppercase">Actual</text>
+    </svg>
+  `;
+}
 
 /* ─── Sub-componentes ────────────────────────────────── */
 const Chip = ({ ok, children }) => (
@@ -104,6 +126,202 @@ function ReporteDetail() {
     setIsChatLoading(false);
   };
 
+  const handleExport = () => {
+    if (!reporte) return;
+    const r = reporte;
+    const src = "Backend real";
+    const is016 = r.tipo_reporte !== '015A';
+    const fechaProcesamiento = r.fecha_creacion ? new Date(r.fecha_creacion).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" }) : "—";
+    const filename = r.nombre_archivo || "Reporte histórico";
+
+    const badge = (ok) =>
+      ok
+        ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#052e16;color:#4ade80;border:1px solid #16a34a44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">✓ Cumple</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:5px;background:#2d0a0a;color:#f87171;border:1px solid #ef444444;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">✕ No cumple</span>`;
+
+    let metricsHtml = '';
+    let tableHtml = '';
+
+    if (is016) {
+      const donutAdmin = createDonutSvg(r.porcentaje_administracion ?? 0, 12, "#16a34a", "#dc2626", r.limite_administracion_valido);
+      const donutCuota = createDonutSvg(r.porcentaje_cuota_monetaria ?? 0, 100, "#16a34a", "#dc2626", r.minimo_cuota_monetaria_valido);
+      metricsHtml = `
+        <div class="metric-card ${r.limite_administracion_valido ? "ok" : "fail"}">
+          <div class="metric-info"><div class="metric-label">Gastos administrativos</div><div class="metric-sub">Límite normativo máximo: 8%</div><div>${badge(r.limite_administracion_valido)}</div></div>
+          <div>${donutAdmin}</div>
+        </div>
+        <div class="metric-card ${r.minimo_cuota_monetaria_valido ? "ok" : "fail"}">
+          <div class="metric-info"><div class="metric-label">Cuota monetaria</div><div class="metric-sub">Límite normativo mínimo: 55%</div><div>${badge(r.minimo_cuota_monetaria_valido)}</div></div>
+          <div>${donutCuota}</div>
+        </div>`;
+      tableHtml = `
+        <tr><td>Gastos administrativos</td><td><strong>${r.porcentaje_administracion ?? 0}%</strong></td><td>Máx. 8%</td><td>${badge(r.limite_administracion_valido)}</td></tr>
+        <tr><td>Cuota monetaria</td><td><strong>${r.porcentaje_cuota_monetaria ?? 0}%</strong></td><td>Mín. 55%</td><td>${badge(r.minimo_cuota_monetaria_valido)}</td></tr>`;
+    } else {
+      const ecOk = r.ecuacion_contable_valida;
+      const endPct = r.nivel_endeudamiento ?? 0;
+      const donutEc = createDonutSvg(ecOk ? 100 : 0, 100, "#16a34a", "#dc2626", ecOk);
+      const donutEnd = createDonutSvg(endPct, 100, "#3b82f6", "#3b82f6", true);
+      const fmtM = (v) => v ? `$${(v / 1_000_000).toFixed(1)}M` : '$0M';
+      
+      metricsHtml = `
+        <div class="metric-card ${ecOk ? "ok" : "fail"}">
+          <div class="metric-info"><div class="metric-label">Ecuación contable</div><div class="metric-sub">Activo = Pasivo + Patrimonio</div><div>${badge(ecOk)}</div></div>
+          <div>${donutEc}</div>
+        </div>
+        <div class="metric-card ok">
+          <div class="metric-info"><div class="metric-label">Nivel de endeudamiento</div><div class="metric-sub">Pasivo / Activo</div><div><span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#3b82f6;border:1px solid #93c5fd44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">${endPct}%</span></div></div>
+          <div>${donutEnd}</div>
+        </div>`;
+      tableHtml = `
+        <tr><td>Total Activos</td><td><strong>${fmtM(r.total_activos)}</strong></td><td>—</td><td>—</td></tr>
+        <tr><td>Total Pasivos</td><td><strong>${fmtM(r.total_pasivos)}</strong></td><td>—</td><td>—</td></tr>
+        <tr><td>Total Patrimonio</td><td><strong>${fmtM(r.total_patrimonio)}</strong></td><td>—</td><td>—</td></tr>
+        <tr><td>Ecuación contable</td><td><strong>${ecOk ? "Válida ✓" : "No cuadra ✕"}</strong></td><td>A = P + Pat</td><td>${badge(ecOk)}</td></tr>
+        <tr><td>Nivel de endeudamiento</td><td><strong>${endPct}%</strong></td><td>Referencia</td><td><span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#3b82f6;border:1px solid #93c5fd44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">ℹ Informativo</span></td></tr>`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Informe de Auditoría — ${r.nombre_ccf || 'Detectada'}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'DM Sans',sans-serif;color:#1e293b;background:#fff;font-size:13px;line-height:1.6;}
+    h1,h2,h3,h4,h5,h6{font-family:'Space Grotesk',sans-serif;}
+
+    .cover{background:linear-gradient(135deg,#0f172a 0%,#2e1065 100%);color:#fff;padding:56px 56px 48px;position:relative;}
+    .cover-label{font-size:10px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:#c4b5fd;margin-bottom:10px;}
+    .cover-title{font-size:28px;font-weight:700;line-height:1.2;color:#fff;margin-bottom:6px;}
+    .cover-sub{font-size:14px;color:#cbd5e1;}
+    .cover-badges{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+    .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 14px;font-size:11px;font-weight:700;border:1px solid;}
+    .badge-blue{background:rgba(124,58,237,.15);color:#c4b5fd;border-color:rgba(124,58,237,.3);}
+    .badge-ok{background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(16,185,129,.3);}
+    .badge-warn{background:rgba(245,158,11,.15);color:#fcd34d;border-color:rgba(245,158,11,.3);}
+
+    .body{padding:40px 56px;}
+    .section{margin-bottom:36px;}
+    .section-num{font-size:10px;font-weight:700;color:#7c3aed;letter-spacing:.2em;text-transform:uppercase;margin-bottom:4px;}
+    .section-title{font-size:16px;font-weight:700;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-bottom:14px;}
+    p{color:#475569;margin-bottom:8px;}
+
+    .meta-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:4px;}
+    .meta-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;}
+    .meta-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.1em;}
+    .meta-value{font-size:14px;font-weight:700;color:#0f172a;margin-top:4px;word-break:break-all;}
+
+    .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+    .metric-card{border-radius:16px;padding:24px;border:1px solid;display:flex;align-items:center;gap:24px;}
+    .metric-card.ok{background:#f0fdf4;border-color:#bbf7d0;}
+    .metric-card.fail{background:#fff1f2;border-color:#fecdd3;}
+    .metric-info{flex:1;}
+    .metric-label{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;font-family:'Space Grotesk',sans-serif;}
+    .metric-sub{font-size:12px;color:#475569;margin:8px 0 12px;font-weight:500;}
+
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    thead{background:#f1f5f9;}
+    th{padding:12px 14px;text-align:left;font-weight:700;color:#475569;text-transform:uppercase;font-size:10px;letter-spacing:.1em;border-bottom:2px solid #e2e8f0;}
+    td{padding:12px 14px;border-bottom:1px solid #f1f5f9;color:#334155;font-weight:500;}
+
+    .analysis{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;}
+    .verdict{border-radius:12px;padding:20px 24px;display:flex;align-items:center;gap:16px;margin-bottom:4px;}
+    .verdict.ok{background:#f0fdf4;border:1px solid #bbf7d0;}
+    .verdict.fail{background:#fff1f2;border:1px solid #fecdd3;}
+    .verdict-icon{font-size:28px;line-height:1;}
+    .verdict-title{font-size:18px;font-weight:700;font-family:'Space Grotesk',sans-serif;}
+    .verdict-title.ok{color:#15803d;}
+    .verdict-title.fail{color:#be123c;}
+    .verdict-sub{font-size:13px;color:#475569;margin-top:2px;font-weight:500;}
+
+    .legal{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-top:32px;}
+    .legal-title{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
+    .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;font-weight:600;}
+  </style>
+</head>
+<body>
+
+  <div class="cover">
+    <div class="cover-label">Superintendencia del Subsidio Familiar</div>
+    <div class="cover-title">Informe Preliminar de<br/>Auditoría Financiera</div>
+    <div class="cover-sub">${r.nombre_ccf || 'Detectada'} &nbsp;·&nbsp; ${filename}</div>
+    <div class="cover-badges">
+      <span class="badge badge-blue">📅 ${fechaProcesamiento}</span>
+      <span class="badge badge-ok">${src}</span>
+      <span class="badge ${r.cumplimiento_general ? "badge-ok" : ""}" style="${!r.cumplimiento_general ? "background:rgba(244,63,94,.15);color:#fca5a5;border-color:rgba(244,63,94,.3);" : ""}">
+        ${r.cumplimiento_general ? "✓ Cumple" : "✕ No cumple"}
+      </span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="section">
+      <div class="section-num">01</div>
+      <div class="section-title">Información general</div>
+      <div class="meta-grid">
+        <div class="meta-card"><div class="meta-label">Caja evaluada</div><div class="meta-value">${r.nombre_ccf || 'Detectada'}</div></div>
+        <div class="meta-card"><div class="meta-label">Fecha de procesamiento</div><div class="meta-value">${fechaProcesamiento}</div></div>
+        <div class="meta-card"><div class="meta-label">Archivo procesado</div><div class="meta-value">${filename}</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-num">02</div>
+      <div class="section-title">Resultados del análisis (Indicadores reales)</div>
+
+      <div class="verdict ${r.cumplimiento_general ? "ok" : "fail"}">
+        <div class="verdict-icon">${r.cumplimiento_general ? "🛡️" : "⚠️"}</div>
+        <div>
+          <div class="verdict-title ${r.cumplimiento_general ? "ok" : "fail"}">
+            ${r.cumplimiento_general ? "Cumplimiento general verificado" : "Se detectaron incumplimientos"}
+          </div>
+          <div class="verdict-sub">Evaluación basada en los indicadores calculados a partir del reporte cargado.</div>
+        </div>
+      </div>
+
+      <div class="metric-grid" style="margin-top:20px;">
+        ${metricsHtml}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-num">03</div>
+      <div class="section-title">Resumen de indicadores</div>
+      <table>
+        <thead><tr><th>Indicador</th><th>Resultado</th><th>Criterio</th><th>Estado</th></tr></thead>
+        <tbody>
+          ${tableHtml}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-num">04</div>
+      <div class="section-title">Análisis cognitivo del sistema</div>
+      <div class="analysis"><p>${(r.analisis_cognitivo || '').replace(/\n/g, "<br/>")}</p></div>
+    </div>
+
+    <div class="legal">
+      <div class="legal-title">⚠ Nota de uso</div>
+      <p>Este informe preliminar contiene gráficas SVG inyectadas con datos reales (donuts) provenientes del análisis automatizado. No reemplaza la revisión formal.</p>
+    </div>
+
+    <div class="footer">
+      <span>Superintendencia del Subsidio Familiar · Auditoría SSF</span>
+      <span>Generado: ${fechaProcesamiento} · ${src}</span>
+    </div>
+  </div>
+
+  <script>window.onload = () => { setTimeout(window.print, 500); }</script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
+  };
+
   if (loading) {
     return (
       <section className="fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px", color: "#A78BFA" }}>
@@ -134,23 +352,40 @@ function ReporteDetail() {
     <section className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px", paddingBottom: "32px" }}>
 
       {/* ── Header con botón atrás ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <button
-          onClick={() => navigate("/")}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px",
-            borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)",
-            color: "#94A3B8", cursor: "pointer", transition: "all 200ms", flexShrink: 0,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(124,58,237,0.15)"; e.currentTarget.style.color = "#C4B5FD"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#94A3B8"; }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <p style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.25em", color: "#A78BFA" }}>Detalle del reporte</p>
-          <h2 style={{ fontSize: "28px", fontWeight: 800, fontFamily: "var(--font-heading)", color: "#fff", lineHeight: 1.1 }}>{r.nombre_ccf}</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <button
+            onClick={() => navigate("/")}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px",
+              borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)",
+              color: "#94A3B8", cursor: "pointer", transition: "all 200ms", flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(124,58,237,0.15)"; e.currentTarget.style.color = "#C4B5FD"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#94A3B8"; }}
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <p style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.25em", color: "#A78BFA" }}>Detalle del reporte</p>
+            <h2 style={{ fontSize: "28px", fontWeight: 800, fontFamily: "var(--font-heading)", color: "#fff", lineHeight: 1.1 }}>{r.nombre_ccf}</h2>
+          </div>
         </div>
+        
+        <button
+          onClick={handleExport}
+          style={{
+            display: "flex", alignItems: "center", gap: "8px",
+            borderRadius: "12px", border: "1px solid rgba(16,185,129,0.3)",
+            background: "rgba(16,185,129,0.1)", padding: "10px 20px",
+            color: "#34D399", fontWeight: 700, cursor: "pointer", transition: "all 200ms",
+            fontSize: "14px", flexShrink: 0,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "rgba(16,185,129,0.2)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(16,185,129,0.1)"; }}
+        >
+          <Download size={16} /> Exportar PDF
+        </button>
       </div>
 
       {/* ── Layout principal: métricas | chat ── */}
