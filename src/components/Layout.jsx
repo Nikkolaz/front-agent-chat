@@ -6,7 +6,6 @@ import logoSSF from "../assets/logo-ssf.png";
 const navItems = [
   { name: "Panel de control",       icon: Home,          path: "/",       color: "text-cyan-400",   glow: "rgba(6,182,212,0.25)" },
   { name: "Cargar reportes",         icon: Upload,        path: "/cargar", color: "text-violet-400", glow: "rgba(124,58,237,0.25)" },
-  { name: "Asistente de auditoría",  icon: MessageSquare, path: "/chat",   color: "text-indigo-400", glow: "rgba(99,102,241,0.25)" },
 ];
 
 function Layout() {

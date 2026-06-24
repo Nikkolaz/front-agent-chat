@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { getAuditorias, deleteAuditoria } from "../services/auditService";
 import {
   Trash2,
@@ -203,6 +204,7 @@ const Skeleton = ({ h = "260px" }) => (
 
 /* ════════════════════════════════════════════════════ */
 function Dashboard() {
+  const navigate = useNavigate();
   const [auditorias, setAuditorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -225,8 +227,8 @@ function Dashboard() {
     const alertas = total - cumple;
     const cajas = new Set(auditorias.map(a => a.nombre_ccf)).size;
     const totalAportes = auditorias.reduce((s, a) => s + (a.total_aportes_recaudados || 0), 0);
-    const avgAdmin = total > 0 ? (auditorias.reduce((s, a) => s + a.porcentaje_administracion, 0) / total) : 0;
-    const avgCuota = total > 0 ? (auditorias.reduce((s, a) => s + a.porcentaje_cuota_monetaria, 0) / total) : 0;
+    const avgAdmin = total > 0 ? (auditorias.reduce((s, a) => s + (a.porcentaje_administracion || 0), 0) / total) : 0;
+    const avgCuota = total > 0 ? (auditorias.reduce((s, a) => s + (a.porcentaje_cuota_monetaria || 0), 0) / total) : 0;
     const tasaCumplimiento = total > 0 ? Math.round((cumple / total) * 100) : 0;
 
     return [
@@ -313,8 +315,8 @@ function Dashboard() {
     auditorias.forEach(a => {
       const k = a.nombre_ccf;
       if (!map[k]) map[k] = { name: k, adminSum: 0, cuotaSum: 0, count: 0 };
-      map[k].adminSum += a.porcentaje_administracion;
-      map[k].cuotaSum += a.porcentaje_cuota_monetaria;
+      map[k].adminSum += (a.porcentaje_administracion || 0);
+      map[k].cuotaSum += (a.porcentaje_cuota_monetaria || 0);
       map[k].count += 1;
     });
     return Object.values(map).map(d => ({
@@ -371,8 +373,8 @@ function Dashboard() {
         caja: a.nombre_ccf,
         periodo: `${a.ano}-${String(a.mes).padStart(2, "0")}`,
         cumple: a.cumplimiento_general,
-        admin: a.porcentaje_administracion,
-        cuota: a.porcentaje_cuota_monetaria,
+        admin: a.porcentaje_administracion ?? 0,
+        cuota: a.porcentaje_cuota_monetaria ?? 0,
         fecha: a.fecha_creacion ? new Date(a.fecha_creacion).toLocaleDateString("es-CO") : "—",
       })),
     [auditorias]);
@@ -386,7 +388,7 @@ function Dashboard() {
       <Toast show={toast.show} type={toast.type} message={toast.message} />
 
       {/* ── Header ── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px", ...({ "@media (min-width: 768px)": { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" } }) }}>
+      <div className="dashboard-header">
         <div>
           <p style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.25em", color: C.accent }}>Supervisión financiera</p>
           <h2 style={{ marginTop: "8px", fontSize: "36px", fontWeight: 800, fontFamily: "var(--font-heading)", color: "#fff", letterSpacing: "-0.02em" }}>Panel de control</h2>
@@ -440,7 +442,7 @@ function Dashboard() {
       </div>
 
       {/* ── Fila: Donut + Evolución Temporal ── */}
-      <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "1fr", ...({ "@media (min-width: 1024px)": { gridTemplateColumns: "1fr 2fr" } }) }}>
+      <div className="dashboard-grid-donut-line">
         {/* Donut */}
         <Card>
           <SectionTitle sub="Proporción de reportes por resultado">Cumplimiento global</SectionTitle>
@@ -612,7 +614,7 @@ function Dashboard() {
 
       {/* ── Tabla historial ── */}
       <Card>
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", ...({ "@media (min-width: 768px)": { flexDirection: "row", alignItems: "center", justifyContent: "space-between" } }), marginBottom: "24px" }}>
+        <div className="dashboard-table-header">
           <SectionTitle sub="Últimos reportes financieros procesados por el sistema.">Historial de reportes</SectionTitle>
           <span style={{
             display: "inline-flex", borderRadius: "999px", border: "1px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.1)",
@@ -644,7 +646,13 @@ function Dashboard() {
                 <tr><td colSpan="7" style={{ padding: "40px", textAlign: "center", color: "#64748B" }}>Aún no hay reportes en la base de datos.</td></tr>
               ) : (
                 historial.map((item, idx) => (
-                  <tr key={item.id ?? idx} style={{ transition: "background 200ms", borderBottom: "1px solid rgba(255,255,255,0.03)" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.02)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <tr 
+                    key={item.id ?? idx} 
+                    onClick={() => navigate(`/reportes/${item.id}`)}
+                    style={{ transition: "background 200ms", borderBottom: "1px solid rgba(255,255,255,0.03)", cursor: "pointer" }} 
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"} 
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
                     <td style={{ padding: "16px 20px", fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{item.caja}</td>
                     <td style={{ padding: "16px 20px", fontFamily: "monospace", color: "#CBD5E1" }}>{item.periodo}</td>
                     <td style={{ padding: "16px 20px" }}><EstadoChip cumple={item.cumple} /></td>
@@ -653,7 +661,7 @@ function Dashboard() {
                     <td style={{ padding: "16px 20px", color: "#94A3B8", fontSize: "13px" }}>{item.fecha}</td>
                     <td style={{ padding: "16px 20px", textAlign: "center" }}>
                       <button
-                        onClick={() => openDeleteModal(item)} title="Eliminar reporte"
+                        onClick={(e) => { e.stopPropagation(); openDeleteModal(item); }} title="Eliminar reporte"
                         style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", padding: "8px", borderRadius: "8px", transition: "all 200ms" }}
                         onMouseEnter={e => { e.currentTarget.style.background = "rgba(244,63,94,0.15)"; e.currentTarget.style.color = "#F43F5E"; }}
                         onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#64748B"; }}

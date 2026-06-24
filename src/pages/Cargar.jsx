@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 
 /* ─── Constantes ─────────────────────────────────────── */
-const CAJAS = ["Colsubsidio", "Cafam", "Comfandi", "Compensar", "Comfenalco"];
 
 const STEPS = [
   { id: 1, label: "Reporte recibido",       icon: Upload },
@@ -59,17 +58,14 @@ const Chip = ({ ok, children }) => (
   </span>
 );
 
-/* ════════════════════════════════════════════════════ */
 function Cargar() {
   const fileInputRef = useRef(null);
   const [dragging, setDragging]         = useState(false);
-  const [selectedCaja, setSelectedCaja] = useState("Colsubsidio");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isLoading, setIsLoading]       = useState(false);
   const [auditResult, setAuditResult]   = useState(null);
   const [showReport, setShowReport]     = useState(false);
   const [error, setError]               = useState("");
-  const [isSelectOpen, setIsSelectOpen] = useState(false);
 
   const fechaProcesamiento = new Date().toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" });
 
@@ -95,12 +91,8 @@ function Cargar() {
     if (!selectedFile) return;
     setIsLoading(true); setError(""); setAuditResult(null); setShowReport(false);
     try {
-      const result = await auditFile(selectedFile, selectedCaja);
+      const result = await auditFile(selectedFile, ""); // El backend lo detectará
       setAuditResult(result);
-      // Si el backend extrajo el nombre real de la caja desde el XML, actualizar la UI
-      if (result.reporte_origen && result.reporte_origen.nombre_ccf) {
-        setSelectedCaja(result.reporte_origen.nombre_ccf);
-      }
     } catch (err) {
       console.error(err);
       setError("No se pudo conectar con el backend o hubo un error en la validación de los datos.");
@@ -118,23 +110,61 @@ function Cargar() {
     if (!auditResult) return;
     const r   = auditResult.resultados_calculados;
     const src = auditResult.source === "backend" ? "Backend real" : "Modo simulación";
-
-    // Generar SVG de los donuts (con datos reales)
-    // Para Admin, el límite es 8% (usaremos 12% como máximo del gráfico)
-    const donutAdmin = createDonutSvg(r.porcentaje_administracion, 12, "#16a34a", "#dc2626", r.limite_administracion_valido);
-    // Para Cuota, el límite es 55% (usaremos 100% como máximo del gráfico)
-    const donutCuota = createDonutSvg(r.porcentaje_cuota_monetaria, 100, "#16a34a", "#dc2626", r.minimo_cuota_monetaria_valido);
+    const is016 = auditResult.reporte_origen?.tipo_reporte !== '015A';
 
     const badge = (ok) =>
       ok
         ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#052e16;color:#4ade80;border:1px solid #16a34a44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">✓ Cumple</span>`
         : `<span style="display:inline-flex;align-items:center;gap:5px;background:#2d0a0a;color:#f87171;border:1px solid #ef444444;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">✕ No cumple</span>`;
 
+    // Generar métricas condicionales según tipo de reporte
+    let metricsHtml = '';
+    let tableHtml = '';
+
+    if (is016) {
+      const donutAdmin = createDonutSvg(r.porcentaje_administracion ?? 0, 12, "#16a34a", "#dc2626", r.limite_administracion_valido);
+      const donutCuota = createDonutSvg(r.porcentaje_cuota_monetaria ?? 0, 100, "#16a34a", "#dc2626", r.minimo_cuota_monetaria_valido);
+      metricsHtml = `
+        <div class="metric-card ${r.limite_administracion_valido ? "ok" : "fail"}">
+          <div class="metric-info"><div class="metric-label">Gastos administrativos</div><div class="metric-sub">Límite normativo máximo: 8%</div><div>${badge(r.limite_administracion_valido)}</div></div>
+          <div>${donutAdmin}</div>
+        </div>
+        <div class="metric-card ${r.minimo_cuota_monetaria_valido ? "ok" : "fail"}">
+          <div class="metric-info"><div class="metric-label">Cuota monetaria</div><div class="metric-sub">Límite normativo mínimo: 55%</div><div>${badge(r.minimo_cuota_monetaria_valido)}</div></div>
+          <div>${donutCuota}</div>
+        </div>`;
+      tableHtml = `
+        <tr><td>Gastos administrativos</td><td><strong>${r.porcentaje_administracion ?? 0}%</strong></td><td>Máx. 8%</td><td>${badge(r.limite_administracion_valido)}</td></tr>
+        <tr><td>Cuota monetaria</td><td><strong>${r.porcentaje_cuota_monetaria ?? 0}%</strong></td><td>Mín. 55%</td><td>${badge(r.minimo_cuota_monetaria_valido)}</td></tr>`;
+    } else {
+      const ecOk = r.ecuacion_contable_valida;
+      const endPct = r.nivel_endeudamiento ?? 0;
+      const donutEc = createDonutSvg(ecOk ? 100 : 0, 100, "#16a34a", "#dc2626", ecOk);
+      const donutEnd = createDonutSvg(endPct, 100, "#3b82f6", "#3b82f6", true);
+      const fmtM = (v) => v ? `$${(v / 1_000_000).toFixed(1)}M` : '$0M';
+      const orig = auditResult.reporte_origen;
+      metricsHtml = `
+        <div class="metric-card ${ecOk ? "ok" : "fail"}">
+          <div class="metric-info"><div class="metric-label">Ecuación contable</div><div class="metric-sub">Activo = Pasivo + Patrimonio</div><div>${badge(ecOk)}</div></div>
+          <div>${donutEc}</div>
+        </div>
+        <div class="metric-card ok">
+          <div class="metric-info"><div class="metric-label">Nivel de endeudamiento</div><div class="metric-sub">Pasivo / Activo</div><div><span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#3b82f6;border:1px solid #93c5fd44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">${endPct}%</span></div></div>
+          <div>${donutEnd}</div>
+        </div>`;
+      tableHtml = `
+        <tr><td>Total Activos</td><td><strong>${fmtM(orig?.total_activos)}</strong></td><td>—</td><td>—</td></tr>
+        <tr><td>Total Pasivos</td><td><strong>${fmtM(orig?.total_pasivos)}</strong></td><td>—</td><td>—</td></tr>
+        <tr><td>Total Patrimonio</td><td><strong>${fmtM(orig?.total_patrimonio)}</strong></td><td>—</td><td>—</td></tr>
+        <tr><td>Ecuación contable</td><td><strong>${ecOk ? "Válida ✓" : "No cuadra ✕"}</strong></td><td>A = P + Pat</td><td>${badge(ecOk)}</td></tr>
+        <tr><td>Nivel de endeudamiento</td><td><strong>${endPct}%</strong></td><td>Referencia</td><td><span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#3b82f6;border:1px solid #93c5fd44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">ℹ Informativo</span></td></tr>`;
+    }
+
     const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <title>Informe de Auditoría — ${selectedCaja}</title>
+  <title>Informe de Auditoría — ${auditResult.reporte_origen?.nombre_ccf || 'Detectada'}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=DM+Sans:wght@400;500;600;700&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -195,7 +225,7 @@ function Cargar() {
   <div class="cover">
     <div class="cover-label">Superintendencia del Subsidio Familiar</div>
     <div class="cover-title">Informe Preliminar de<br/>Auditoría Financiera</div>
-    <div class="cover-sub">${selectedCaja} &nbsp;·&nbsp; ${selectedFile?.name}</div>
+    <div class="cover-sub">${auditResult.reporte_origen?.nombre_ccf || 'Detectada'} &nbsp;·&nbsp; ${selectedFile?.name}</div>
     <div class="cover-badges">
       <span class="badge badge-blue">📅 ${fechaProcesamiento}</span>
       <span class="badge ${auditResult.source === "backend" ? "badge-ok" : "badge-warn"}">${src}</span>
@@ -210,7 +240,7 @@ function Cargar() {
       <div class="section-num">01</div>
       <div class="section-title">Información general</div>
       <div class="meta-grid">
-        <div class="meta-card"><div class="meta-label">Caja evaluada</div><div class="meta-value">${selectedCaja}</div></div>
+        <div class="meta-card"><div class="meta-label">Caja evaluada</div><div class="meta-value">${auditResult.reporte_origen?.nombre_ccf || 'Detectada'}</div></div>
         <div class="meta-card"><div class="meta-label">Fecha de procesamiento</div><div class="meta-value">${fechaProcesamiento}</div></div>
         <div class="meta-card"><div class="meta-label">Archivo procesado</div><div class="meta-value">${selectedFile?.name}</div></div>
       </div>
@@ -231,23 +261,7 @@ function Cargar() {
       </div>
 
       <div class="metric-grid" style="margin-top:20px;">
-        <div class="metric-card ${r.limite_administracion_valido ? "ok" : "fail"}">
-          <div class="metric-info">
-            <div class="metric-label">Gastos administrativos</div>
-            <div class="metric-sub">Límite normativo máximo: 8%</div>
-            <div>${badge(r.limite_administracion_valido)}</div>
-          </div>
-          <div>${donutAdmin}</div>
-        </div>
-        
-        <div class="metric-card ${r.minimo_cuota_monetaria_valido ? "ok" : "fail"}">
-          <div class="metric-info">
-            <div class="metric-label">Cuota monetaria</div>
-            <div class="metric-sub">Límite normativo mínimo: 55%</div>
-            <div>${badge(r.minimo_cuota_monetaria_valido)}</div>
-          </div>
-          <div>${donutCuota}</div>
-        </div>
+        ${metricsHtml}
       </div>
     </div>
 
@@ -257,14 +271,7 @@ function Cargar() {
       <table>
         <thead><tr><th>Indicador</th><th>Resultado</th><th>Criterio</th><th>Estado</th></tr></thead>
         <tbody>
-          <tr>
-            <td>Gastos administrativos</td><td><strong>${r.porcentaje_administracion}%</strong></td>
-            <td>Máx. 8%</td><td>${badge(r.limite_administracion_valido)}</td>
-          </tr>
-          <tr>
-            <td>Cuota monetaria</td><td><strong>${r.porcentaje_cuota_monetaria}%</strong></td>
-            <td>Mín. 55%</td><td>${badge(r.minimo_cuota_monetaria_valido)}</td>
-          </tr>
+          ${tableHtml}
         </tbody>
       </table>
     </div>
@@ -318,49 +325,10 @@ function Cargar() {
         
         {/* ── Panel Carga ── */}
         <div className={`space-y-5 ${selectedFile ? "lg:col-span-3" : ""}`}>
-          <div style={{ position: "relative", zIndex: 50, borderRadius: "20px", border: "1px solid var(--color-border)", background: "var(--color-card)", padding: "24px", backdropFilter: "blur(12px)" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#A78BFA", marginBottom: "12px" }}>
-              <Building2 size={16} /> Caja de Compensación evaluada
-            </label>
-            <div className="relative" style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setIsSelectOpen(!isSelectOpen)}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  width: "100%", borderRadius: "12px", border: isSelectOpen ? "1px solid #7C3AED" : "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(0,0,0,0.3)", padding: "14px 16px", color: "#fff", fontSize: "14px", cursor: "pointer", transition: "all 200ms"
-                }}
-              >
-                <span>{selectedCaja}</span>
-                <ChevronDown size={18} color="#94A3B8" style={{ transform: isSelectOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }} />
-              </button>
-              
-              {isSelectOpen && (
-                <div style={{
-                  position: "absolute", top: "calc(100% + 8px)", left: 0, width: "100%", zIndex: 50,
-                  borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(13,17,23,0.95)",
-                  backdropFilter: "blur(16px)", padding: "8px", boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-                  animation: "fadeUp 0.2s ease-out"
-                }}>
-                  {CAJAS.map((c) => (
-                    <button
-                      key={c} type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedCaja(c); setIsSelectOpen(false); }}
-                      style={{
-                        display: "block", width: "100%", textAlign: "left", padding: "10px 16px",
-                        borderRadius: "8px", background: selectedCaja === c ? "rgba(124,58,237,0.15)" : "transparent",
-                        color: selectedCaja === c ? "#C4B5FD" : "#E2E8F0", fontSize: "14px", border: "none", cursor: "pointer",
-                        transition: "background 150ms"
-                      }}
-                      onMouseEnter={e => { if(selectedCaja !== c) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                      onMouseLeave={e => { if(selectedCaja !== c) e.currentTarget.style.background = "transparent"; }}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              )}
+        <div style={{ position: "relative", zIndex: 50, borderRadius: "20px", border: "1px solid var(--color-border)", background: "var(--color-card)", padding: "24px", backdropFilter: "blur(12px)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", color: "#94A3B8" }}>
+              <Building2 size={16} color="#A78BFA" />
+              <span>La Caja de Compensación se detecta automáticamente del archivo cargado.</span>
             </div>
           </div>
 
@@ -452,7 +420,7 @@ function Cargar() {
           <div className="fade-up space-y-4 lg:col-span-2">
             <div style={{ borderRadius: "20px", border: "1px solid var(--color-border)", background: "var(--color-card)", padding: "24px", backdropFilter: "blur(12px)" }}>
               <p style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94A3B8", marginBottom: "16px" }}>Resumen del envío</p>
-              {[["Caja evaluada", selectedCaja, Building2], ["Archivo", selectedFile.name, FileSpreadsheet], ["Tamaño", fmtBytes(selectedFile.size), ClipboardList], ["Fecha", fechaProcesamiento, TrendingUp]].map(([k, v, Icon]) => (
+              {[["Archivo", selectedFile.name, FileSpreadsheet], ["Tamaño", fmtBytes(selectedFile.size), ClipboardList], ["Fecha", fechaProcesamiento, TrendingUp]].map(([k, v, Icon]) => (
                 <div key={k} style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ display: "flex", width: "32px", height: "32px", alignItems: "center", justifyContent: "center", borderRadius: "10px", background: "rgba(255,255,255,0.05)", color: "#94A3B8" }}><Icon size={16} /></div>
                   <div style={{ minWidth: 0 }}>
@@ -514,7 +482,7 @@ function Cargar() {
           </div>
 
           {/* Dictamen banner */}
-          <div style={{ position: "relative", overflow: "hidden", borderRadius: "24px", border: cumple ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(244,63,94,0.3)", background: cumple ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)", padding: "32px", display: "flex", flexDirection: "column", gap: "20px", ...({ "@media (min-width: 768px)": { flexDirection: "row", alignItems: "center", justifyContent: "space-between" } }) }}>
+          <div className="cargar-dictamen-banner" style={{ position: "relative", overflow: "hidden", borderRadius: "24px", border: cumple ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(244,63,94,0.3)", background: cumple ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)", padding: "32px" }}>
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: cumple ? "radial-gradient(circle at 0% 50%, rgba(16,185,129,0.15), transparent 50%)" : "radial-gradient(circle at 0% 50%, rgba(244,63,94,0.15), transparent 50%)" }} />
             <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "20px" }}>
               <div style={{ display: "flex", height: "72px", width: "72px", alignItems: "center", justifyContent: "center", borderRadius: "20px", border: cumple ? "2px solid rgba(16,185,129,0.4)" : "2px solid rgba(244,63,94,0.4)", background: cumple ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)", boxShadow: cumple ? "0 0 32px rgba(16,185,129,0.3)" : "0 0 32px rgba(244,63,94,0.3)", flexShrink: 0 }}>
@@ -523,7 +491,7 @@ function Cargar() {
               <div>
                 <p style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.15em", color: cumple ? "#6EE7B7" : "#FDA4AF" }}>Dictamen preliminar</p>
                 <h3 style={{ marginTop: "4px", fontSize: "28px", fontWeight: 800, fontFamily: "var(--font-heading)", color: "#fff", lineHeight: 1.1 }}>{cumple ? "Cumplimiento verificado" : "Se detectaron incumplimientos"}</h3>
-                <p style={{ marginTop: "6px", fontSize: "14px", color: "#94A3B8" }}>{selectedCaja} · {selectedFile?.name}</p>
+                <p style={{ marginTop: "6px", fontSize: "14px", color: "#94A3B8" }}>{auditResult.reporte_origen?.nombre_ccf || 'Detectada'} · {selectedFile?.name}</p>
               </div>
             </div>
             <div style={{ position: "relative", display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
@@ -536,10 +504,13 @@ function Cargar() {
 
           {/* Métricas con gráficas reales de anillos incorporadas en la UI también */}
           <div className="grid gap-6 md:grid-cols-2">
-            {[
-              { label: "Gastos administrativos", sub: "Límite normativo: máx 8%", value: r.porcentaje_administracion, ok: r.limite_administracion_valido, limit: 12, donutColor: r.limite_administracion_valido ? "#10b981" : "#f43f5e" },
-              { label: "Cuota monetaria", sub: "Límite normativo: mín 55%", value: r.porcentaje_cuota_monetaria, ok: r.minimo_cuota_monetaria_valido, limit: 100, donutColor: r.minimo_cuota_monetaria_valido ? "#10b981" : "#f43f5e" },
-            ].map((m) => {
+            {(auditResult.reporte_origen?.tipo_reporte !== '015A' ? [
+              { label: "Gastos administrativos", sub: "Límite normativo: máx 8%", value: r.porcentaje_administracion || 0, ok: r.limite_administracion_valido, limit: 12, donutColor: r.limite_administracion_valido ? "#10b981" : "#f43f5e", displayValue: `${r.porcentaje_administracion || 0}%` },
+              { label: "Cuota monetaria", sub: "Límite normativo: mín 55%", value: r.porcentaje_cuota_monetaria || 0, ok: r.minimo_cuota_monetaria_valido, limit: 100, donutColor: r.minimo_cuota_monetaria_valido ? "#10b981" : "#f43f5e", displayValue: `${r.porcentaje_cuota_monetaria || 0}%` },
+            ] : [
+              { label: "Nivel de Endeudamiento", sub: "Pasivo / Activo", value: r.nivel_endeudamiento || 0, ok: true, limit: 100, donutColor: "#3b82f6", displayValue: `${r.nivel_endeudamiento || 0}%` },
+              { label: "Ecuación Contable", sub: "Activo = Pasivo + Patrimonio", value: r.ecuacion_contable_valida ? 100 : 0, ok: r.ecuacion_contable_valida, limit: 100, donutColor: r.ecuacion_contable_valida ? "#10b981" : "#f43f5e", displayValue: r.ecuacion_contable_valida ? "Válida" : "No cuadra" },
+            ]).map((m) => {
                // Render simple donut in UI
                const pct = Math.min((m.value / m.limit) * 100, 100);
                const c = 2 * Math.PI * 40; // r=40
@@ -562,7 +533,7 @@ function Cargar() {
                       <circle cx="50" cy="50" r="40" fill="none" stroke={m.donutColor} strokeWidth="10" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
                     </svg>
                     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "20px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)", lineHeight: 1 }}>{m.value}%</span>
+                      <span style={{ fontSize: m.displayValue.length > 5 ? "13px" : "20px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)", lineHeight: 1, textAlign: "center" }}>{m.displayValue}</span>
                     </div>
                   </div>
                 </div>

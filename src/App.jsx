@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Cargar from './pages/Cargar';
-import Chat from './pages/Chat';
+import ReporteDetail from './pages/ReporteDetail';
 import Login from './pages/Login';
 
 const PrivateRoute = ({ children }) => {
@@ -28,7 +28,7 @@ function App() {
         }>
           <Route index element={<Dashboard />} />
           <Route path="cargar" element={<Cargar />} />
-          <Route path="chat" element={<Chat />} />
+          <Route path="reportes/:id" element={<ReporteDetail />} />
         </Route>
       </Routes>
     </BrowserRouter>

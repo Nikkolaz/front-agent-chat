@@ -51,12 +51,26 @@ export async function getAuditorias() {
   }
 }
 
-export async function sendChatMessage(mensaje, ccf) {
+export async function getAuditoriaById(id) {
   try {
+    const response = await fetch(`${API_URL}/auditorias/${id}`);
+    if (!response.ok) throw new Error("El backend respondió con error al obtener el reporte");
+    return await response.json();
+  } catch (error) {
+    console.error("Error al obtener el reporte:", error);
+    return null;
+  }
+}
+
+export async function sendChatMessage(mensaje, ccf, auditoriaId = null) {
+  try {
+    const body = { mensaje, ccf };
+    if (auditoriaId) body.auditoria_id = auditoriaId;
+
     const response = await fetch(`${API_URL}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mensaje, ccf }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) throw new Error("Error en la respuesta del chat");
     const data = await response.json();

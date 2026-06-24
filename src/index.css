@@ -141,3 +141,74 @@ h1, h2, h3, h4, h5, h6 {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* ── Dashboard responsive layouts ── */
+.dashboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .dashboard-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.dashboard-grid-donut-line {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1024px) {
+  .dashboard-grid-donut-line {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+.dashboard-table-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (min-width: 768px) {
+  .dashboard-table-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* ── animate-spin utility ── */
+.animate-spin {
+  animation: spin-slow 1s linear infinite;
+}
+
+/* ── Cargar: dictamen banner responsive ── */
+.cargar-dictamen-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (min-width: 768px) {
+  .cargar-dictamen-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* ── ReporteDetail: grid layout responsive ── */
+.lg-grid-detail {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .lg-grid-detail {
+    grid-template-columns: 1fr 1fr;
+  }
+}
