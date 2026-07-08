@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuditorias, deleteAuditoria } from "../services/auditService";
+import { getAuditorias, deleteAuditoria, getSesiones } from "../services/auditService";
 import {
   Trash2,
   TrendingUp,
@@ -206,18 +206,21 @@ const Skeleton = ({ h = "260px" }) => (
 function Dashboard() {
   const navigate = useNavigate();
   const [auditorias, setAuditorias] = useState([]);
+  const [sesiones, setSesiones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     else setLoading(true);
-    const data = await getAuditorias();
+    const [data, sesData] = await Promise.all([getAuditorias(), getSesiones()]);
     setAuditorias(data);
+    setSesiones(sesData);
     setLoading(false);
     setRefreshing(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchData(); }, []);
 
   /* ── KPIs ─────────────────────────────────────────── */
@@ -408,6 +411,45 @@ function Dashboard() {
           {refreshing ? "Actualizando…" : "Actualizar datos"}
         </button>
       </div>
+
+      {/* ── Sesiones recientes ── */}
+      {sesiones.length > 0 && (
+        <Card>
+          <SectionTitle sub="Sesiones de procesamiento batch con múltiples archivos">Sesiones de auditoría</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {sesiones.slice(0, 5).map((s) => (
+              <div
+                key={s.id}
+                onClick={() => navigate(`/sesion/${s.id}`)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "16px", padding: "16px 20px",
+                  borderRadius: "14px", border: "1px solid rgba(124,58,237,0.15)",
+                  background: "rgba(124,58,237,0.04)", cursor: "pointer", transition: "all 200ms",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(124,58,237,0.1)"; e.currentTarget.style.borderColor = "rgba(124,58,237,0.35)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(124,58,237,0.04)"; e.currentTarget.style.borderColor = "rgba(124,58,237,0.15)"; }}
+              >
+                <div style={{ display: "flex", height: "40px", width: "40px", alignItems: "center", justifyContent: "center", borderRadius: "12px", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", flexShrink: 0 }}>
+                  <span style={{ fontSize: "16px", fontWeight: 800, color: "#C4B5FD", fontFamily: "var(--font-heading)" }}>#{s.id}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>{s.cajas_involucradas}</p>
+                  <p style={{ fontSize: "12px", color: "#94A3B8", marginTop: "2px" }}>
+                    {s.total_archivos} archivos · {s.tipos_procesados} · {s.fecha_creacion ? new Date(s.fecha_creacion).toLocaleDateString("es-CO") : ""}
+                  </p>
+                </div>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: "4px", borderRadius: "8px", padding: "4px 10px",
+                  fontSize: "11px", fontWeight: 700, background: "rgba(124,58,237,0.15)", color: "#C4B5FD",
+                  border: "1px solid rgba(124,58,237,0.3)"
+                }}>
+                  Chat →
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* ── 6 KPI Cards ── */}
       <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>

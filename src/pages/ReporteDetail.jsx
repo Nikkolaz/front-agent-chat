@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { getAuditoriaById, sendChatMessage } from "../services/auditService";
-import {
-  ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle2, Cpu,
-  Send, Sparkles, Building2, CalendarDays, DollarSign,
-  TrendingUp, BarChart3, Loader2, MessageSquare, Download,
-} from "lucide-react";
+import { 
+  ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Download,
+  Building2, CalendarDays, DollarSign, TrendingUp, BarChart3, Cpu, MessageSquare, Send
+} from 'lucide-react';
 
 /* ─── Generador de SVG Donut ─────────────────────────── */
 function createDonutSvg(value, max, colorOk, colorFail, isOk) {
@@ -43,7 +42,7 @@ const Chip = ({ ok, children }) => (
   </span>
 );
 
-const MetricCard = ({ label, value, sub, icon: Icon, color, ok }) => {
+const MetricCard = ({ label, value, sub, ok }) => {
   const c = 2 * Math.PI * 40;
   const limit = label.includes("admin") ? 12 : 100;
   const pct = Math.min((value / limit) * 100, 100);
@@ -139,8 +138,8 @@ function ReporteDetail() {
         ? `<span style="display:inline-flex;align-items:center;gap:5px;background:#052e16;color:#4ade80;border:1px solid #16a34a44;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">✓ Cumple</span>`
         : `<span style="display:inline-flex;align-items:center;gap:5px;background:#2d0a0a;color:#f87171;border:1px solid #ef444444;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;">✕ No cumple</span>`;
 
-    let metricsHtml = '';
-    let tableHtml = '';
+    let metricsHtml;
+    let tableHtml;
 
     if (is016) {
       const donutAdmin = createDonutSvg(r.porcentaje_administracion ?? 0, 12, "#16a34a", "#dc2626", r.limite_administracion_valido);

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Home, Upload, MessageSquare, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, FileUp, LogOut, ChevronRight } from "lucide-react";
 import logoSSF from "../assets/logo-ssf.png";
 
 const navItems = [
-  { name: "Panel de control",       icon: Home,          path: "/",       color: "text-cyan-400",   glow: "rgba(6,182,212,0.25)" },
-  { name: "Cargar reportes",         icon: Upload,        path: "/cargar", color: "text-violet-400", glow: "rgba(124,58,237,0.25)" },
+  { name: "Panel de control",       icon: LayoutDashboard,          path: "/",       color: "text-cyan-400",   glow: "rgba(6,182,212,0.25)" },
+  { name: "Cargar reportes",         icon: FileUp,        path: "/cargar", color: "text-violet-400", glow: "rgba(124,58,237,0.25)" },
 ];
 
 function Layout() {

@@ -14,9 +14,18 @@ const mockAuditResult = {
     "La auditoría simulada indica que la caja cumple con los límites establecidos. El porcentaje de gastos administrativos se mantiene por debajo del máximo permitido del 8%, y la cuota monetaria supera el mínimo requerido del 55%. Se recomienda mantener seguimiento mensual para detectar desviaciones tempranas.",
 };
 
-export async function auditFile(file, caja) {
+/**
+ * Envía 1 o más archivos al endpoint /audit.
+ * @param {File|File[]} files - Archivo único o array de archivos (máx 5).
+ * @param {string} caja - Nombre de la caja (opcional, se autodetecta).
+ */
+export async function auditFile(files, caja) {
   const formData = new FormData();
-  formData.append("file", file);
+
+  // Soportar tanto File individual como Array de Files
+  const fileList = Array.isArray(files) ? files : [files];
+  fileList.forEach((f) => formData.append("files", f));
+
   if (caja) {
     formData.append("caja", caja);
   }
@@ -26,11 +35,14 @@ export async function auditFile(file, caja) {
       method: "POST",
       body: formData,
     });
-    if (!response.ok) throw new Error("El backend respondió con error");
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.detail || "El backend respondió con error");
+    }
     const data = await response.json();
     return { source: "backend", ...data };
   } catch (error) {
-    console.warn("Backend no disponible. Usando respuesta mock temporal.");
+    console.warn("Backend no disponible o error:", error.message);
     if (USE_MOCK_FALLBACK) {
       return new Promise((resolve) => {
         setTimeout(() => resolve(mockAuditResult), 1000);
@@ -106,5 +118,57 @@ export async function deleteAuditoria(id) {
   } catch (error) {
     console.error("Delete error:", error);
     return false;
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// NUEVAS FUNCIONES PARA MULTI-AUDITORÍA
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Obtiene el listado de sesiones de auditoría batch.
+ */
+export async function getSesiones() {
+  try {
+    const response = await fetch(`${API_URL}/sesiones`);
+    if (!response.ok) throw new Error("Error al obtener sesiones");
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo sesiones:", error);
+    return [];
+  }
+}
+
+/**
+ * Obtiene el detalle de una sesión con todos sus reportes.
+ */
+export async function getSesionById(id) {
+  try {
+    const response = await fetch(`${API_URL}/sesiones/${id}`);
+    if (!response.ok) throw new Error("Error al obtener sesión");
+    return await response.json();
+  } catch (error) {
+    console.error("Error obteniendo sesión:", error);
+    return null;
+  }
+}
+
+/**
+ * Envía un mensaje de chat con contexto de toda la sesión.
+ */
+export async function sendChatMulti(mensaje, sesionId) {
+  try {
+    const response = await fetch(`${API_URL}/chat-multi`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mensaje, sesion_id: sesionId }),
+    });
+    if (!response.ok) throw new Error("Error en chat multi");
+    const data = await response.json();
+    return data.respuesta;
+  } catch (error) {
+    console.error("Error en chat multi:", error);
+    return "Lo siento, ha ocurrido un error al conectar con el servidor.";
   }
 }
