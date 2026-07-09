@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FileUp, LogOut, ChevronRight } from "lucide-react";
 import logoSSF from "../assets/logo-ssf.png";
+import GlobalChat from "./GlobalChat";
 
 const navItems = [
   { name: "Panel de control",       icon: LayoutDashboard,          path: "/",       color: "text-cyan-400",   glow: "rgba(6,182,212,0.25)" },
@@ -186,6 +187,9 @@ function Layout() {
       }}>
         <Outlet />
       </main>
+
+      {/* ── Global Chat Widget ── */}
+      <GlobalChat />
     </div>
   );
 }

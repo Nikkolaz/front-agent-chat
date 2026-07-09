@@ -17,7 +17,17 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
+import { useEffect } from 'react';
+
 function App() {
+  useEffect(() => {
+    // Mantener el backend vivo enviando un pulso cada 5 segundos
+    const interval = setInterval(() => {
+      fetch(`/api/heartbeat`, { method: 'POST' }).catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

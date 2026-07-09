@@ -159,10 +159,10 @@ export async function getSesionById(id) {
  */
 export async function sendChatMulti(mensaje, sesionId) {
   try {
-    const response = await fetch(`${API_URL}/chat-multi`, {
+    const response = await fetch(`${API_URL}/api/chat-sesion/${sesionId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mensaje, sesion_id: sesionId }),
+      body: JSON.stringify({ mensaje }),
     });
     if (!response.ok) throw new Error("Error en chat multi");
     const data = await response.json();
@@ -170,5 +170,27 @@ export async function sendChatMulti(mensaje, sesionId) {
   } catch (error) {
     console.error("Error en chat multi:", error);
     return "Lo siento, ha ocurrido un error al conectar con el servidor.";
+  }
+}
+
+/**
+ * Envía un mensaje de chat con contexto global de toda la BD.
+ */
+export async function sendChatGlobal(mensaje) {
+  try {
+    const response = await fetch(`${API_URL}/api/chat-global`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mensaje }),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.detail || "Error en chat global");
+    }
+    const data = await response.json();
+    return data.respuesta;
+  } catch (error) {
+    console.error("Error en chat global:", error);
+    return `Lo siento: ${error.message}`;
   }
 }
