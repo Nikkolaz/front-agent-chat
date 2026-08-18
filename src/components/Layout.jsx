@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileUp, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, FileUp, LogOut, ChevronRight, Settings } from "lucide-react";
 import logoSSF from "../assets/logo-ssf.png";
 import GlobalChat from "./GlobalChat";
-
-const navItems = [
-  { name: "Panel de control",       icon: LayoutDashboard,          path: "/",       color: "text-cyan-400",   glow: "rgba(6,182,212,0.25)" },
-  { name: "Cargar reportes",         icon: FileUp,        path: "/cargar", color: "text-violet-400", glow: "rgba(124,58,237,0.25)" },
-];
 
 function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const navItems = [
+    { name: "Panel de control",       icon: LayoutDashboard,          path: "/",       color: "text-cyan-400",   glow: "rgba(6,182,212,0.25)" },
+    { name: "Cargar reportes",         icon: FileUp,        path: "/cargar", color: "text-violet-400", glow: "rgba(124,58,237,0.25)" },
+  ];
+  if (user.role === "superadmin") {
+    navItems.push({ name: "Configuración", icon: Settings, path: "/configuracion", color: "text-green-400", glow: "rgba(16,185,129,0.25)" });
+  }
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");

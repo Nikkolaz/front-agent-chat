@@ -6,6 +6,7 @@ import Cargar from './pages/Cargar';
 import ReporteDetail from './pages/ReporteDetail';
 import ChatSesion from './pages/ChatSesion';
 import Login from './pages/Login';
+import Configuracion from './components/Configuracion';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('authToken');
@@ -41,6 +42,7 @@ function App() {
           <Route path="cargar" element={<Cargar />} />
           <Route path="reportes/:id" element={<ReporteDetail />} />
           <Route path="sesion/:id" element={<ChatSesion />} />
+          <Route path="configuracion" element={<Configuracion />} />
         </Route>
       </Routes>
     </BrowserRouter>

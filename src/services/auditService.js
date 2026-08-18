@@ -159,10 +159,10 @@ export async function getSesionById(id) {
  */
 export async function sendChatMulti(mensaje, sesionId) {
   try {
-    const response = await fetch(`${API_URL}/api/chat-sesion/${sesionId}`, {
+    const response = await fetch(`${API_URL}/chat-multi`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mensaje }),
+      body: JSON.stringify({ mensaje, sesion_id: sesionId }),
     });
     if (!response.ok) throw new Error("Error en chat multi");
     const data = await response.json();
@@ -178,7 +178,7 @@ export async function sendChatMulti(mensaje, sesionId) {
  */
 export async function sendChatGlobal(mensaje) {
   try {
-    const response = await fetch(`${API_URL}/api/chat-global`, {
+    const response = await fetch(`${API_URL}/chat-global`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mensaje }),
@@ -193,4 +193,32 @@ export async function sendChatGlobal(mensaje) {
     console.error("Error en chat global:", error);
     return `Lo siento: ${error.message}`;
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// NUEVAS FUNCIONES PARA CONFIGURACIÓN (SUPER ADMIN)
+// ══════════════════════════════════════════════════════════════
+
+export async function getSystemConfig() {
+  const response = await fetch(`${API_URL}/api/config`);
+  if (!response.ok) throw new Error("Error al obtener configuración");
+  return await response.json();
+}
+
+export async function updateSystemConfig(config) {
+  const response = await fetch(`${API_URL}/api/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config)
+  });
+  if (!response.ok) throw new Error("Error al actualizar configuración");
+  return await response.json();
+}
+
+export async function reprocesarHistorial() {
+  const response = await fetch(`${API_URL}/api/reprocesar`, {
+    method: 'POST'
+  });
+  if (!response.ok) throw new Error("Error al iniciar reprocesamiento");
+  return await response.json();
 }

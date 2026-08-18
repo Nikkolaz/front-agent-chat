@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import { MessageSquare, X, Send, Sparkles, Loader2, Database } from "lucide-react";
+import { MessageSquare, MessageCircle, X, Send, Sparkles, Loader2, Database } from "lucide-react";
 import { sendChatGlobal } from "../services/auditService";
 
 const GlobalChat = () => {
@@ -9,7 +9,7 @@ const GlobalChat = () => {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      text: "¡Hola! Soy el Asistente de Inteligencia de Datos Global. Puedo cruzar información de toda la base de datos, analizar tendencias y comparar cajas del último trimestre. ¿Qué te gustaría saber?",
+      text: "¡Hola! Soy **SuperAudi**, tu asistente inteligente de la Superintendencia del Subsidio Familiar. 🤖🇨🇴\n\nPuedo cruzar información de toda la base de datos, analizar tendencias y comparar el desempeño de las diferentes Cajas de Compensación. ¿En qué te puedo ayudar hoy?",
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +85,7 @@ const GlobalChat = () => {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <Database size={20} />
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>Chatbot Global (BD)</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>SuperAudi — Asistente SSF</h3>
             </div>
             <button 
               onClick={() => setIsOpen(false)}
@@ -231,27 +231,23 @@ const GlobalChat = () => {
         </div>
       )}
 
+      {/* Burbuja de Diálogo tipo Comic (Solo cuando está cerrado) */}
+      {!isOpen && (
+        <div className="chat-tooltip">
+          <span className="tooltip-text">
+            ¡Hola! Soy <strong>SuperAudi</strong> 👋
+          </span>
+          <span className="tooltip-subtext">¿Necesitas ayuda?</span>
+        </div>
+      )}
+
       {/* Botón Flotante */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: "60px",
-          height: "60px",
-          borderRadius: "30px",
-          background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
-          color: "white",
-          border: "none",
-          boxShadow: "0 8px 25px rgba(79, 70, 229, 0.5)",
-          cursor: "pointer",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          transition: "transform 0.2s",
-          transform: isOpen ? "scale(0.9)" : "scale(1)"
-        }}
-        title="Chat Global (BD)"
+        className={`chat-floating-btn ${isOpen ? 'open' : ''}`}
+        title="SuperAudi — Asistente SSF"
       >
-        {isOpen ? <X size={28} /> : <Sparkles size={28} />}
+        {isOpen ? <X size={28} /> : <MessageCircle size={28} />}
       </button>
 
       <style>
@@ -266,6 +262,96 @@ const GlobalChat = () => {
           @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+          }
+          @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.7); transform: scale(1); }
+            50% { box-shadow: 0 0 20px 10px rgba(124, 58, 237, 0); transform: scale(1.05); }
+            100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); transform: scale(1); }
+          }
+          .chat-floating-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 8px 25px rgba(124, 58, 237, 0.5);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: pulse-glow-purple 2s infinite;
+          }
+          .chat-floating-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 15px 35px rgba(124, 58, 237, 0.6);
+          }
+          .chat-floating-btn.open {
+            background: #1F2937;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transform: scale(0.9);
+            animation: none;
+            border: 1px solid rgba(255,255,255,0.1);
+          }
+          .chat-floating-btn.open:hover {
+            transform: scale(0.95);
+            background: #374151;
+          }
+          @keyframes pulse-glow-purple {
+            0% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.7); transform: scale(1); }
+            50% { box-shadow: 0 0 20px 10px rgba(124, 58, 237, 0); transform: scale(1.05); }
+            100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); transform: scale(1); }
+          }
+          
+          /* Tooltip tipo Comic */
+          .chat-tooltip {
+            position: absolute;
+            bottom: 75px;
+            right: 0px;
+            background: white;
+            padding: 10px 16px;
+            border-radius: 20px;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            white-space: nowrap;
+            animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards, float 3s ease-in-out infinite alternate;
+            transform-origin: bottom right;
+            cursor: pointer;
+            z-index: 10000;
+          }
+          .chat-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            right: 15px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 10px 10px 0 0;
+            border-color: white transparent transparent transparent;
+          }
+          .tooltip-text {
+            color: #1F2937;
+            font-size: 14px;
+          }
+          .tooltip-subtext {
+            color: #6B7280;
+            font-size: 11px;
+            font-weight: 500;
+            margin-top: 2px;
+          }
+          
+          @keyframes bounce-in {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes float {
+            0% { transform: translateY(0px); }
+            100% { transform: translateY(-6px); }
           }
         `}
       </style>
