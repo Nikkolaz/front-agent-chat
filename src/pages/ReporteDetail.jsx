@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { getAuditoriaById, sendChatMessage } from "../services/auditService";
+import { getAuditoriaById, sendChatMessage, sendValidatorChat } from "../services/auditService";
 import { 
   ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Download,
   Building2, CalendarDays, DollarSign, TrendingUp, BarChart3, Cpu, MessageSquare, Send
 } from 'lucide-react';
 
-/* ─── Generador de SVG Donut ─────────────────────────── */
+/* â”€â”€â”€ Generador de SVG Donut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function createDonutSvg(value, max, colorOk, colorFail, isOk) {
   const size = 120;
   const strokeWidth = 14;
@@ -29,7 +29,7 @@ function createDonutSvg(value, max, colorOk, colorFail, isOk) {
   `;
 }
 
-/* ─── Sub-componentes ────────────────────────────────── */
+/* â”€â”€â”€ Sub-componentes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const Chip = ({ ok, children }) => (
   <span style={{
     display: "inline-flex", alignItems: "center", gap: "6px", borderRadius: "999px", padding: "5px 14px", fontSize: "12px", fontWeight: 700,
@@ -83,9 +83,11 @@ const quickQuestions = [
   "¿Qué recomendaciones le darías a la Caja?",
 ];
 
-/* ════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function ReporteDetail() {
   const { id } = useParams();
+  const [validadorResult, setValidadorResult] = useState({});
+  const [isValidating, setIsValidating] = useState({});
   const navigate = useNavigate();
   const chatEndRef = useRef(null);
 
@@ -123,6 +125,35 @@ function ReporteDetail() {
     const respuesta = await sendChatMessage(textToSend, reporte?.nombre_ccf || "", parseInt(id));
     setMessages((prev) => [...prev, { role: "agent", text: respuesta }]);
     setIsChatLoading(false);
+  };
+
+  const [isValidatorModalOpen, setIsValidatorModalOpen] = useState(false);
+  const [validatorMessages, setValidatorMessages] = useState([]);
+  const [validatorMessage, setValidatorMessage] = useState("");
+  const [isValidatorLoading, setIsValidatorLoading] = useState(false);
+  const validatorEndRef = useRef(null);
+
+  useEffect(() => {
+    validatorEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [validatorMessages, isValidatorLoading]);
+
+  const handleOpenValidator = () => {
+    setIsValidatorModalOpen(true);
+    if (validatorMessages.length === 0) {
+      setValidatorMessages([
+        { role: "agent", text: "Soy el Agente Validador. Analizo el trabajo del auditor para asegurar 100% de exactitud y cumplimiento normativo. ¿Tienes alguna duda sobre este dictamen o quieres que revise algo específico?" }
+      ]);
+    }
+  };
+
+  const sendValidatorMsg = async (textToSend = validatorMessage) => {
+    if (!textToSend.trim() || isValidatorLoading) return;
+    setValidatorMessages((prev) => [...prev, { role: "user", text: textToSend }]);
+    setValidatorMessage("");
+    setIsValidatorLoading(true);
+    const respuesta = await sendValidatorChat(reporte.id, textToSend, validatorMessages);
+    setValidatorMessages((prev) => [...prev, { role: "agent", text: respuesta }]);
+    setIsValidatorLoading(false);
   };
 
   const handleExport = () => {
@@ -271,7 +302,7 @@ function ReporteDetail() {
       <div class="section-title">Resultados del análisis (Indicadores reales)</div>
 
       <div class="verdict ${r.cumplimiento_general ? "ok" : "fail"}">
-        <div class="verdict-icon">${r.cumplimiento_general ? "🛡️" : "⚠️"}</div>
+        <div class="verdict-icon">${r.cumplimiento_general ? "🛡️" : "⚠️"}</div>
         <div>
           <div class="verdict-title ${r.cumplimiento_general ? "ok" : "fail"}">
             ${r.cumplimiento_general ? "Cumplimiento general verificado" : "Se detectaron incumplimientos"}
@@ -303,7 +334,7 @@ function ReporteDetail() {
     </div>
 
     <div class="legal">
-      <div class="legal-title">⚠ Nota de uso</div>
+      <div class="legal-title">âš  Nota de uso</div>
       <p>Este informe preliminar contiene gráficas SVG inyectadas con datos reales (donuts) provenientes del análisis automatizado. No reemplaza la revisión formal.</p>
     </div>
 
@@ -325,7 +356,7 @@ function ReporteDetail() {
     return (
       <section className="fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px", color: "#A78BFA" }}>
         <Loader2 size={28} className="animate-spin" />
-        <span style={{ fontSize: "16px", fontWeight: 600 }}>Cargando reporte…</span>
+        <span style={{ fontSize: "16px", fontWeight: 600 }}>Cargando reporteâ€¦</span>
       </section>
     );
   }
@@ -350,7 +381,7 @@ function ReporteDetail() {
   return (
     <section className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px", paddingBottom: "32px" }}>
 
-      {/* ── Header con botón atrás ── */}
+      {/* â”€â”€ Header con botón atrás â”€â”€ */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <button
@@ -387,12 +418,12 @@ function ReporteDetail() {
         </button>
       </div>
 
-      {/* ── Layout principal: métricas | chat ── */}
+      {/* â”€â”€ Layout principal: métricas | chat â”€â”€ */}
       <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "1fr", alignItems: "start" }}
         className="lg-grid-detail"
       >
 
-        {/* ═══ COLUMNA IZQUIERDA: Métricas ═══ */}
+        {/* â•â•â• COLUMNA IZQUIERDA: Métricas â•â•â• */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
           {/* Dictamen banner */}
@@ -483,10 +514,27 @@ function ReporteDetail() {
               <div style={{ display: "flex", height: "36px", width: "36px", alignItems: "center", justifyContent: "center", borderRadius: "12px", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)" }}>
                 <Cpu size={18} color="#C4B5FD" />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>Análisis cognitivo IA</h4>
                 <p style={{ fontSize: "12px", color: "#A78BFA" }}>Dictamen generado al cargar el reporte</p>
               </div>
+              <button 
+                onClick={handleOpenValidator}
+                style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  border: "none",
+                  color: "#fff", padding: "10px 18px", borderRadius: "10px",
+                  fontSize: "14px", fontWeight: 700, cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+              >
+                <ShieldCheck size={14} />
+                Validar Dictamen
+              </button>
             </div>
             <div className="prose prose-invert max-w-none" style={{ fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", maxHeight: "400px", overflowY: "auto", paddingRight: "8px" }}>
               <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
@@ -494,7 +542,7 @@ function ReporteDetail() {
           </div>
         </div>
 
-        {/* ═══ COLUMNA DERECHA: Chat Copilot ═══ */}
+        {/* â•â•â• COLUMNA DERECHA: Chat Copilot â•â•â• */}
         <div style={{
           display: "flex", flexDirection: "column", borderRadius: "24px",
           border: "1px solid rgba(99,102,241,0.2)", background: "var(--color-card)",
@@ -564,7 +612,7 @@ function ReporteDetail() {
                     <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#6366F1", animation: "fadeUp 1s ease-in-out 0.2s infinite" }} />
                     <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#6366F1", animation: "fadeUp 1s ease-in-out 0.4s infinite" }} />
                   </div>
-                  Analizando…
+                  Analizandoâ€¦
                 </div>
               </div>
             )}
@@ -582,7 +630,7 @@ function ReporteDetail() {
                 value={message} onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
                 disabled={isChatLoading}
-                placeholder="Pregunta sobre este reporte…"
+                placeholder="Pregunta sobre este reporteâ€¦"
                 style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
               />
               <button
@@ -598,6 +646,68 @@ function ReporteDetail() {
           </div>
         </div>
       </div>
+      {/* Validator Chat Modal */}
+      {isValidatorModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+          <div style={{ width: "90%", maxWidth: "600px", height: "80vh", display: "flex", flexDirection: "column", background: "var(--color-card)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" }}>
+            <div style={{ padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(135deg, rgba(16,185,129,0.1) 0%, transparent 100%)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <ShieldCheck size={24} color="#10b981" />
+                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#fff", margin: 0 }}>Agente Validador</h3>
+              </div>
+              <button onClick={() => setIsValidatorModalOpen(false)} style={{ background: "transparent", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: "20px" }}>✕</button>
+            </div>
+            
+            <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {validatorMessages.map((item, index) => {
+                const isUser = item.role === "user";
+                return (
+                  <div key={index} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
+                    <div style={{
+                      maxWidth: "85%", borderRadius: "16px", padding: "14px 18px", fontSize: "14px", lineHeight: 1.6,
+                      ...(isUser
+                        ? { background: "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15))", border: "1px solid rgba(16,185,129,0.3)", borderBottomRightRadius: "4px", color: "#E0E7FF" }
+                        : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderBottomLeftRadius: "4px", color: "#E2E8F0" }
+                      )
+                    }}>
+                      <div className="prose prose-invert max-w-none prose-sm">
+                        <ReactMarkdown>{item.text}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {isValidatorLoading && (
+                <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                  <div style={{ borderRadius: "16px", borderBottomLeftRadius: "4px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", padding: "14px 18px", display: "flex", alignItems: "center", gap: "10px", color: "#94A3B8", fontSize: "13px" }}>
+                    <Loader2 size={16} className="animate-spin" />
+                    Validando...
+                  </div>
+                </div>
+              )}
+              <div ref={validatorEndRef} />
+            </div>
+
+            <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.3)", padding: "6px 6px 6px 18px" }}>
+                <input
+                  value={validatorMessage} onChange={e => setValidatorMessage(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") sendValidatorMsg(); }}
+                  disabled={isValidatorLoading}
+                  placeholder="Cuestiona o pregunta al validador..."
+                  style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
+                />
+                <button
+                  onClick={() => sendValidatorMsg()} disabled={isValidatorLoading || !validatorMessage.trim()}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "40px", width: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", cursor: isValidatorLoading || !validatorMessage.trim() ? "not-allowed" : "pointer", opacity: isValidatorLoading || !validatorMessage.trim() ? 0.5 : 1, flexShrink: 0 }}
+                >
+                  <Send size={16} style={{ marginLeft: "-1px" }} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

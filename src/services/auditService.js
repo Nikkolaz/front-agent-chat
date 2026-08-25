@@ -222,3 +222,19 @@ export async function reprocesarHistorial() {
   if (!response.ok) throw new Error("Error al iniciar reprocesamiento");
   return await response.json();
 }
+export async function sendValidatorChat(reporteId, mensaje, historial) {
+  try {
+    const response = await fetch(`${API_URL}/chat-validador`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reporte_id: reporteId, mensaje, historial }),
+    });
+    if (!response.ok) throw new Error('Error en chat validador');
+    const data = await response.json();
+    return data.respuesta;
+  } catch (error) {
+    console.error('Error en chat validador:', error);
+    return 'Lo siento, ha ocurrido un error al conectar con el servidor.';
+  }
+}
+
