@@ -231,15 +231,6 @@ const GlobalChat = () => {
         </div>
       )}
 
-      {/* Burbuja de Diálogo tipo Comic (Solo cuando está cerrado) */}
-      {!isOpen && (
-        <div className="chat-tooltip">
-          <span className="tooltip-text">
-            ¡Hola! Soy <strong>SuperAudi</strong> 👋
-          </span>
-          <span className="tooltip-subtext">¿Necesitas ayuda?</span>
-        </div>
-      )}
 
       {/* Botón Flotante */}
       <button

@@ -238,3 +238,22 @@ export async function sendValidatorChat(reporteId, mensaje, historial) {
   }
 }
 
+export async function updateAnalisis(reporteId, analisis_cognitivo) {
+  const response = await fetch(`${API_URL}/${reporteId}/analisis`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ analisis_cognitivo })
+  });
+  if (!response.ok) throw new Error("Error al actualizar análisis");
+  return await response.json();
+}
+
+export async function validateAnalisis(reporteId) {
+  const response = await fetch(`${API_URL}/validar-analisis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reporte_id: reporteId })
+  });
+  if (!response.ok) throw new Error("Error al validar análisis");
+  return await response.json();
+}

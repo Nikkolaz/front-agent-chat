@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { getAuditoriaById, sendChatMessage, sendValidatorChat } from "../services/auditService";
+import { getAuditoriaById, sendChatMessage, updateAnalisis, validateAnalisis } from "../services/auditService";
 import { 
-  ArrowLeft, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Download,
-  Building2, CalendarDays, DollarSign, TrendingUp, BarChart3, Cpu, MessageSquare, Send
+  ArrowLeft, AlertTriangle, ShieldCheck, CheckCircle2, Loader2, Download,
+  Building2, CalendarDays, DollarSign, TrendingUp, BarChart3, Cpu, MessageSquare, Send,
+  Edit, Check, X
 } from 'lucide-react';
 
 /* â”€â”€â”€ Generador de SVG Donut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -86,8 +87,6 @@ const quickQuestions = [
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function ReporteDetail() {
   const { id } = useParams();
-  const [validadorResult, setValidadorResult] = useState({});
-  const [isValidating, setIsValidating] = useState({});
   const navigate = useNavigate();
   const chatEndRef = useRef(null);
 
@@ -127,33 +126,67 @@ function ReporteDetail() {
     setIsChatLoading(false);
   };
 
-  const [isValidatorModalOpen, setIsValidatorModalOpen] = useState(false);
-  const [validatorMessages, setValidatorMessages] = useState([]);
-  const [validatorMessage, setValidatorMessage] = useState("");
-  const [isValidatorLoading, setIsValidatorLoading] = useState(false);
-  const validatorEndRef = useRef(null);
-
+  const [isEditingDictamen, setIsEditingDictamen] = useState(false);
+  const [editedAnalisis, setEditedAnalisis] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  
   useEffect(() => {
-    validatorEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [validatorMessages, isValidatorLoading]);
+    if (validationResult) {
+      const timer = setTimeout(() => setValidationResult(null), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [validationResult]);
 
-  const handleOpenValidator = () => {
-    setIsValidatorModalOpen(true);
-    if (validatorMessages.length === 0) {
-      setValidatorMessages([
-        { role: "agent", text: "Soy el Agente Validador. Analizo el trabajo del auditor para asegurar 100% de exactitud y cumplimiento normativo. ¿Tienes alguna duda sobre este dictamen o quieres que revise algo específico?" }
-      ]);
+  const handleEditClick = () => {
+    setEditedAnalisis(reporte.analisis_cognitivo || "");
+    setIsEditingDictamen(true);
+  };
+  
+  const handleSaveAnalisis = async () => {
+    if (!reporte) return;
+    setIsUpdating(true);
+    try {
+      await updateAnalisis(reporte.id, editedAnalisis);
+      setReporte(prev => ({ ...prev, analisis_cognitivo: editedAnalisis }));
+      setIsEditingDictamen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Error al actualizar el dictamen");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
-  const sendValidatorMsg = async (textToSend = validatorMessage) => {
-    if (!textToSend.trim() || isValidatorLoading) return;
-    setValidatorMessages((prev) => [...prev, { role: "user", text: textToSend }]);
-    setValidatorMessage("");
-    setIsValidatorLoading(true);
-    const respuesta = await sendValidatorChat(reporte.id, textToSend, validatorMessages);
-    setValidatorMessages((prev) => [...prev, { role: "agent", text: respuesta }]);
-    setIsValidatorLoading(false);
+  const handleValidarDictamen = async () => {
+    if (!reporte) return;
+    setIsValidating(true);
+    
+    // Agregamos un mensaje de "cargando" opcional, o solo mostramos el spinner en el botón
+    try {
+      const res = await validateAnalisis(reporte.id);
+      setValidationResult(res.veredicto_validador);
+      
+      // Añadir la respuesta de SuperAudi directamente al chat
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        role: "agent",
+        text: `**Resultado de la Validación Automática:**\n\n${res.veredicto_validador}`
+      }]);
+      
+    } catch(err) {
+      console.error(err);
+      setValidationResult("Error al contactar al Agente Validador.");
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        role: "agent",
+        text: "Hubo un error al ejecutar la validación. Revisa la consola o asegúrate de que el backend esté funcionando."
+      }]);
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleExport = () => {
@@ -518,27 +551,99 @@ function ReporteDetail() {
                 <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>Análisis cognitivo IA</h4>
                 <p style={{ fontSize: "12px", color: "#A78BFA" }}>Dictamen generado al cargar el reporte</p>
               </div>
-              <button 
-                onClick={handleOpenValidator}
+              
+              {!isEditingDictamen ? (
+                <>
+                  <button 
+                    onClick={handleValidarDictamen} disabled={isValidating}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.4)",
+                      color: "#10b981", padding: "6px 12px", borderRadius: "8px",
+                      fontSize: "13px", fontWeight: 600, cursor: isValidating ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {isValidating ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                    {isValidating ? "Validando..." : "Validar con SuperAudi"}
+                  </button>
+                  <button 
+                    onClick={handleEditClick}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      background: "rgba(124, 58, 237, 0.15)", border: "1px solid rgba(124, 58, 237, 0.4)",
+                      color: "#c4b5fd", padding: "6px 12px", borderRadius: "8px",
+                      fontSize: "13px", fontWeight: 600, cursor: "pointer"
+                    }}
+                  >
+                    <Edit size={14} /> Editar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    onClick={handleSaveAnalisis} disabled={isUpdating}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.5)",
+                      color: "#34d399", padding: "6px 12px", borderRadius: "8px",
+                      fontSize: "13px", fontWeight: 600, cursor: isUpdating ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    {isUpdating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    Guardar
+                  </button>
+                  <button 
+                    onClick={() => setIsEditingDictamen(false)} disabled={isUpdating}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      background: "rgba(244, 63, 94, 0.15)", border: "1px solid rgba(244, 63, 94, 0.4)",
+                      color: "#fb7185", padding: "6px 12px", borderRadius: "8px",
+                      fontSize: "13px", fontWeight: 600, cursor: isUpdating ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    <X size={14} /> Cancelar
+                  </button>
+                </>
+              )}
+            </div>
+            
+            {isEditingDictamen ? (
+              <textarea
+                value={editedAnalisis}
+                onChange={(e) => setEditedAnalisis(e.target.value)}
                 style={{
-                  display: "flex", alignItems: "center", gap: "8px",
-                  background: "linear-gradient(135deg, #10b981, #059669)",
-                  border: "none",
-                  color: "#fff", padding: "10px 18px", borderRadius: "10px",
-                  fontSize: "14px", fontWeight: 700, cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
-                  transition: "all 0.2s"
+                  width: "100%", minHeight: "300px",
+                  background: "rgba(0,0,0,0.2)", border: "1px solid rgba(124,58,237,0.4)",
+                  borderRadius: "12px", padding: "16px", color: "#e2e8f0",
+                  fontSize: "14px", lineHeight: 1.7, outline: "none", resize: "vertical"
                 }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
-              >
-                <ShieldCheck size={14} />
-                Validar Dictamen
-              </button>
-            </div>
-            <div className="prose prose-invert max-w-none" style={{ fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", maxHeight: "400px", overflowY: "auto", paddingRight: "8px" }}>
-              <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
-            </div>
+              />
+            ) : (
+              <div className="prose prose-invert max-w-none" style={{ fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", maxHeight: "400px", overflowY: "auto", paddingRight: "8px" }}>
+                <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
+              </div>
+            )}
+
+            {/* Veredicto del Validador */}
+            {validationResult && (
+              <div style={{ 
+                marginTop: "16px", padding: "16px", borderRadius: "12px",
+                background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.3)"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <ShieldCheck size={16} color="#10b981" />
+                    <h5 style={{ fontSize: "14px", fontWeight: 700, color: "#34d399", margin: 0 }}>Veredicto del Agente Validador</h5>
+                  </div>
+                  <button onClick={() => setValidationResult(null)} style={{ background: "transparent", border: "none", color: "#94A3B8", cursor: "pointer", padding: 0 }}>
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="prose prose-invert max-w-none" style={{ fontSize: "13px", lineHeight: 1.6, color: "#cbd5e1" }}>
+                  <ReactMarkdown>{validationResult}</ReactMarkdown>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -630,9 +735,16 @@ function ReporteDetail() {
                 value={message} onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
                 disabled={isChatLoading}
-                placeholder="Pregunta sobre este reporteâ€¦"
+                placeholder="Pregunta sobre este reporte…"
                 style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
               />
+              <button
+                onClick={handleValidarDictamen} disabled={isValidating}
+                title="Validar dictamen con SuperAudi"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "40px", width: "40px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.4)", cursor: isValidating ? "not-allowed" : "pointer", transition: "all 200ms", flexShrink: 0 }}
+              >
+                {isValidating ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+              </button>
               <button
                 onClick={() => sendMsg()} disabled={isChatLoading || !message.trim()}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "40px", width: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #6366F1, #7C3AED)", color: "#fff", border: "none", cursor: isChatLoading || !message.trim() ? "not-allowed" : "pointer", opacity: isChatLoading || !message.trim() ? 0.5 : 1, transition: "all 200ms", flexShrink: 0 }}
@@ -646,68 +758,6 @@ function ReporteDetail() {
           </div>
         </div>
       </div>
-      {/* Validator Chat Modal */}
-      {isValidatorModalOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
-          <div style={{ width: "90%", maxWidth: "600px", height: "80vh", display: "flex", flexDirection: "column", background: "var(--color-card)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "24px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" }}>
-            <div style={{ padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(135deg, rgba(16,185,129,0.1) 0%, transparent 100%)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <ShieldCheck size={24} color="#10b981" />
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#fff", margin: 0 }}>Agente Validador</h3>
-              </div>
-              <button onClick={() => setIsValidatorModalOpen(false)} style={{ background: "transparent", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: "20px" }}>✕</button>
-            </div>
-            
-            <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
-              {validatorMessages.map((item, index) => {
-                const isUser = item.role === "user";
-                return (
-                  <div key={index} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-                    <div style={{
-                      maxWidth: "85%", borderRadius: "16px", padding: "14px 18px", fontSize: "14px", lineHeight: 1.6,
-                      ...(isUser
-                        ? { background: "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15))", border: "1px solid rgba(16,185,129,0.3)", borderBottomRightRadius: "4px", color: "#E0E7FF" }
-                        : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderBottomLeftRadius: "4px", color: "#E2E8F0" }
-                      )
-                    }}>
-                      <div className="prose prose-invert max-w-none prose-sm">
-                        <ReactMarkdown>{item.text}</ReactMarkdown>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {isValidatorLoading && (
-                <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                  <div style={{ borderRadius: "16px", borderBottomLeftRadius: "4px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", padding: "14px 18px", display: "flex", alignItems: "center", gap: "10px", color: "#94A3B8", fontSize: "13px" }}>
-                    <Loader2 size={16} className="animate-spin" />
-                    Validando...
-                  </div>
-                </div>
-              )}
-              <div ref={validatorEndRef} />
-            </div>
-
-            <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.3)", padding: "6px 6px 6px 18px" }}>
-                <input
-                  value={validatorMessage} onChange={e => setValidatorMessage(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") sendValidatorMsg(); }}
-                  disabled={isValidatorLoading}
-                  placeholder="Cuestiona o pregunta al validador..."
-                  style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
-                />
-                <button
-                  onClick={() => sendValidatorMsg()} disabled={isValidatorLoading || !validatorMessage.trim()}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "40px", width: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", cursor: isValidatorLoading || !validatorMessage.trim() ? "not-allowed" : "pointer", opacity: isValidatorLoading || !validatorMessage.trim() ? 0.5 : 1, flexShrink: 0 }}
-                >
-                  <Send size={16} style={{ marginLeft: "-1px" }} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
