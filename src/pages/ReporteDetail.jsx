@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
+import { marked } from "marked";
 import { getAuditoriaById, sendChatMessage, updateAnalisis, validateAnalisis } from "../services/auditService";
 import { 
   ArrowLeft, AlertTriangle, ShieldCheck, CheckCircle2, Loader2, Download,
@@ -45,32 +48,51 @@ const Chip = ({ ok, children }) => (
 
 const MetricCard = ({ label, value, sub, ok }) => {
   const c = 2 * Math.PI * 40;
-  const limit = label.includes("admin") ? 12 : 100;
-  const pct = Math.min((value / limit) * 100, 100);
+  const limit = 100;
+  const isNull = value == null || value === "";
+  const pct = isNull ? 0 : Math.max(0, Math.min((Number(value) / limit) * 100, 100));
   const off = c - (pct / 100) * c;
-  const donutColor = ok ? "#10b981" : "#f43f5e";
+  
+  let donutColor = "rgba(251,191,36,0.4)";
+    let borderColor = "rgba(251,191,36,0.2)";
+    let bgColor = "rgba(251,191,36,0.04)";
+    if (!isNull) {
+        if (ok === true) {
+            donutColor = "#10b981"; borderColor = "rgba(16,185,129,0.25)"; bgColor = "rgba(16,185,129,0.04)";
+        } else if (ok === false) {
+            donutColor = "#f43f5e"; borderColor = "rgba(244,63,94,0.25)"; bgColor = "rgba(244,63,94,0.04)";
+        } else {
+            donutColor = "#3b82f6"; borderColor = "rgba(59,130,246,0.25)"; bgColor = "rgba(59,130,246,0.04)";
+        }
+    }
 
   return (
     <div style={{
       borderRadius: "20px",
-      border: ok ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(244,63,94,0.25)",
-      background: ok ? "rgba(16,185,129,0.04)" : "rgba(244,63,94,0.04)",
+      border: `1px solid ${borderColor}`,
+      background: bgColor,
       padding: "24px", display: "flex", alignItems: "center", gap: "20px",
     }}>
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: "14px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>{label}</p>
+      <div style={{ flex: '1 1 auto', minWidth: 0, paddingRight: '10px' }}>
+        <p style={{ fontSize: "13px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)", wordWrap: "break-word" }}>{label}</p>
         <p style={{ fontSize: "12px", color: "#94A3B8", marginTop: "4px" }}>{sub}</p>
-        <div style={{ marginTop: "12px" }}><Chip ok={ok}>{ok ? "Cumple" : "No cumple"}</Chip></div>
+        <div style={{ marginTop: "12px" }}>
+          {isNull ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(251,191,36,0.15)", color: "#fbbf24", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>⚠</span> No verificado</span>
+            ) : ok === null ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(59,130,246,0.15)", color: "#60a5fa", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>ℹ</span> Extraído</span>
+            ) : (
+              <Chip ok={ok}>{ok ? "Cumple" : "No cumple"}</Chip>
+            )}
+        </div>
       </div>
       <div style={{ position: "relative", width: "80px", height: "80px", flexShrink: 0 }}>
         <svg width="80" height="80" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-          <circle cx="50" cy="50" r="40" fill="none" stroke={donutColor} strokeWidth="10"
-            strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
-            transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
+          <circle cx="50" cy="50" r="40" fill="none" stroke={donutColor} strokeWidth="10" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)" }}>{value}%</span>
+          <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)" }}>{isNull ? "N/A" : `${value}%`}</span>
         </div>
       </div>
     </div>
@@ -84,13 +106,62 @@ const quickQuestions = [
   "¿Qué recomendaciones le darías a la Caja?",
 ];
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+const repairMarkdown = (text) => {
+  if (!text) return "";
+  let repaired = text;
+  
+  // Limpieza de emergencia si se guardó como HTML corrupto
+  if (repaired.includes("<p>") && repaired.includes("**")) {
+    repaired = repaired.replace(/<\/?p>/g, '\n\n').replace(/<br\s*\/?>/g, '\n');
+  }
+  
+  // Asegurar saltos de línea para títulos
+  repaired = repaired.replace(/###\s/g, '\n\n### ');
+  repaired = repaired.replace(/##\s/g, '\n\n## ');
+  
+  // Forzar salto antes de viñetas pegadas
+  repaired = repaired.replace(/ - \*\*/g, '\n- **');
+  
+  // Limpiar excesos de saltos de línea
+  repaired = repaired.replace(/\n{3,}/g, '\n\n');
+  
+  return repaired.trim();
+};
+
+const extractMetricsFromJson = (text) => {
+  if (!text) return { metrics: null, cleanText: "" };
+  
+  const regexWithTicks = /```(?:json)?\s*(\[\s*\{[\s\S]*?\}\s*\])\s*```/;
+  const regexRawArray = /(\[\s*\{\s*"label"[\s\S]*?\}\s*\])/;
+  
+  let match = text.match(regexWithTicks);
+  let isRaw = false;
+  
+  if (!match) {
+    match = text.match(regexRawArray);
+    isRaw = true;
+  }
+  
+  if (match) {
+    try {
+      const jsonStr = match[1];
+      const parsedMetrics = JSON.parse(jsonStr);
+      const cleanText = text.replace(match[0], "").trim();
+      return { metrics: parsedMetrics, cleanText };
+    } catch (e) {
+      console.error("Error parsing JSON metrics", e);
+    }
+  }
+  return { metrics: null, cleanText: text };
+};
+  
 function ReporteDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const chatEndRef = useRef(null);
 
   const [reporte, setReporte] = useState(null);
+  const [dynamicMetrics, setDynamicMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -100,6 +171,22 @@ function ReporteDetail() {
     async function load() {
       setLoading(true);
       const data = await getAuditoriaById(id);
+      if (data && data.analisis_cognitivo) {
+        let text = repairMarkdown(data.analisis_cognitivo);
+        
+        // Extracción dinámica de JSON (indicadores adicionales)
+        const { metrics, cleanText } = extractMetricsFromJson(text);
+        if (metrics) {
+          setDynamicMetrics(metrics);
+          text = cleanText; // Remover JSON del texto visible
+        }
+
+        // Parsear a HTML si viene en Markdown puro
+        if (text.includes("**") || text.includes("##") || !text.includes("<p>")) {
+           text = marked.parse(text);
+        }
+        data.analisis_cognitivo = text;
+      }
       setReporte(data);
       if (data) {
         setMessages([{
@@ -141,7 +228,12 @@ function ReporteDetail() {
   }, [validationResult]);
 
   const handleEditClick = () => {
-    setEditedAnalisis(reporte.analisis_cognitivo || "");
+    let rawContent = reporte.analisis_cognitivo || "";
+    // REPARADOR DE MARKDOWN: Aplicar limpieza universal por si el reporte está corrupto o sin saltos de línea
+    const textToParse = repairMarkdown(rawContent);
+
+    const initialHtml = marked.parse(textToParse);
+    setEditedAnalisis(initialHtml);
     setIsEditingDictamen(true);
   };
   
@@ -167,7 +259,8 @@ function ReporteDetail() {
     // Agregamos un mensaje de "cargando" opcional, o solo mostramos el spinner en el botón
     try {
       const res = await validateAnalisis(reporte.id);
-      setValidationResult(res.veredicto_validador);
+      const repairedVeredicto = repairMarkdown(res.veredicto_validador);
+      setValidationResult(repairedVeredicto);
       
       // Añadir la respuesta de SuperAudi directamente al chat
       setMessages(prev => [...prev, {
@@ -363,7 +456,7 @@ function ReporteDetail() {
     <div class="section">
       <div class="section-num">04</div>
       <div class="section-title">Análisis cognitivo del sistema</div>
-      <div class="analysis"><p>${(r.analisis_cognitivo || '').replace(/\n/g, "<br/>")}</p></div>
+      <div class="analysis" style="font-family: inherit;">${r.analisis_cognitivo || ''}</div>
     </div>
 
     <div class="legal">
@@ -451,13 +544,13 @@ function ReporteDetail() {
         </button>
       </div>
 
-      {/* â”€â”€ Layout principal: métricas | chat â”€â”€ */}
-      <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "1fr", alignItems: "start" }}
+      {/* ── Layout principal: métricas | chat ── */}
+      <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "1fr", alignItems: "start", minWidth: 0 }}
         className="lg-grid-detail"
       >
 
-        {/* â•â•â• COLUMNA IZQUIERDA: Métricas â•â•â• */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        {/* ═══ COLUMNA IZQUIERDA: Métricas ═══ */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", minWidth: 0 }}>
 
           {/* Dictamen banner */}
           <div style={{
@@ -522,12 +615,26 @@ function ReporteDetail() {
             ))}
           </div>
 
-          {/* Metric donuts — condicional por tipo de reporte */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          {/* Metric donuts — dinámicos o condicional por tipo de reporte */}
+          <div style={{ display: "grid", gridTemplateColumns: dynamicMetrics && dynamicMetrics.length > 2 ? "repeat(auto-fill, minmax(280px, 1fr))" : "1fr 1fr", gap: "16px" }}>
             {is016 ? (
               <>
-                <MetricCard label="Gastos administrativos" value={r.porcentaje_administracion ?? 0} sub="Límite normativo: máx 8%" ok={r.limite_administracion_valido} />
-                <MetricCard label="Cuota monetaria" value={r.porcentaje_cuota_monetaria ?? 0} sub="Límite normativo: mín 55%" ok={r.minimo_cuota_monetaria_valido} />
+                <MetricCard label="Gastos de Administración" value={r.porcentaje_administracion} sub="Límite: <= 8%" ok={r.limite_administracion_valido} />
+                <MetricCard label="Reducción Admón. FOSFEC" value={r.pct_fosfec} sub="Límite: 2% reducción" ok={null} />
+                <MetricCard label="FONIÑEZ" value={r.pct_foninez} sub="50% de la apropiación" ok={null} />
+                <MetricCard label="FOSFEC" value={r.pct_fosfec} sub="1-3% según CP/CN" ok={null} />
+                <MetricCard label="FOVIS" value={r.pct_fovis} sub="27-5% según CP/CN" ok={null} />
+                <MetricCard label="FOSYGA" value={r.pct_fosyga} sub="10% o 5% según CP/CN" ok={null} />
+                <MetricCard label="Promoción y Prevención en Salud" value={r.pct_salud} sub="Límite: 6.25%" ok={null} />
+                <MetricCard label="Contribución Supersubsidio" value={r.pct_supersub} sub="Límite: <= 1%" ok={null} />
+                <MetricCard label="Reserva Legal" value={r.pct_reserva} sub="Límite: <= 3%" ok={null} />
+                <MetricCard label="Subsidio Monetario" value={r.porcentaje_cuota_monetaria} sub="Límite: >= 55% del Subtotal" ok={r.minimo_cuota_monetaria_valido} />
+                <MetricCard label="Personas a cargo > 18 años FOSFEC" value={r.pct_personas_cargo} sub="Ley 789/02" ok={null} />
+                <MetricCard label="Subsidio por Transferencias" value={r.pct_transferencias} sub="Decreto 1769/03" ok={null} />
+                <MetricCard label="Educación" value={r.pct_educacion} sub="Límite: >= 10%" ok={null} />
+                <MetricCard label="Subsidio en Especie" value={r.pct_especie} sub="Ley 21/82" ok={null} />
+                <MetricCard label="Subsidio en Servicios" value={r.pct_servicios} sub="Ley 21/82" ok={null} />
+                <MetricCard label="Proyectos de Inversión" value={r.pct_inversion} sub="Ley 21/82" ok={null} />
               </>
             ) : (
               <>
@@ -542,18 +649,18 @@ function ReporteDetail() {
             borderRadius: "20px", padding: "24px",
             border: "1px solid rgba(124,58,237,0.2)",
             background: "linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.04) 100%)",
+            minWidth: 0
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div style={{ display: "flex", height: "36px", width: "36px", alignItems: "center", justifyContent: "center", borderRadius: "12px", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)" }}>
                 <Cpu size={18} color="#C4B5FD" />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: '1 1 auto', minWidth: '200px', paddingRight: '20px' }}>
                 <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>Análisis cognitivo IA</h4>
                 <p style={{ fontSize: "12px", color: "#A78BFA" }}>Dictamen generado al cargar el reporte</p>
               </div>
               
-              {!isEditingDictamen ? (
-                <>
+              {!isEditingDictamen ? (<div style={{display: 'flex', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap'}}>
                   <button 
                     onClick={handleValidarDictamen} disabled={isValidating}
                     style={{
@@ -577,9 +684,9 @@ function ReporteDetail() {
                   >
                     <Edit size={14} /> Editar
                   </button>
-                </>
+                </div>
               ) : (
-                <>
+                <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
                   <button 
                     onClick={handleSaveAnalisis} disabled={isUpdating}
                     style={{
@@ -603,24 +710,58 @@ function ReporteDetail() {
                   >
                     <X size={14} /> Cancelar
                   </button>
-                </>
+                </div>
               )}
             </div>
             
             {isEditingDictamen ? (
-              <textarea
-                value={editedAnalisis}
-                onChange={(e) => setEditedAnalisis(e.target.value)}
-                style={{
-                  width: "100%", minHeight: "300px",
-                  background: "rgba(0,0,0,0.2)", border: "1px solid rgba(124,58,237,0.4)",
-                  borderRadius: "12px", padding: "16px", color: "#e2e8f0",
-                  fontSize: "14px", lineHeight: 1.7, outline: "none", resize: "vertical"
-                }}
-              />
+              <div style={{ 
+                background: "#f8fafc", 
+                color: "#0f172a", 
+                borderRadius: "12px", 
+                overflow: "hidden", 
+                border: "1px solid rgba(124,58,237,0.4)",
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box"
+              }}>
+                <style>
+                  {`
+                    .ql-editor {
+                      word-break: break-word;
+                      white-space: pre-wrap;
+                      overflow-x: hidden;
+                    }
+                  `}
+                </style>
+                <ReactQuill
+                  theme="snow"
+                  value={editedAnalisis}
+                  onChange={setEditedAnalisis}
+                  style={{ minHeight: "300px" }}
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'color': [] }, { 'background': [] }],
+                      [{ 'align': [] }],
+                      ['clean']
+                    ]
+                  }}
+                />
+              </div>
             ) : (
-              <div className="prose prose-invert max-w-none" style={{ fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", maxHeight: "400px", overflowY: "auto", paddingRight: "8px" }}>
-                <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
+              <div className="prose prose-invert max-w-none" style={{ 
+                fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", 
+                maxHeight: "400px", overflowY: "auto", paddingRight: "8px",
+                wordBreak: "break-word", whiteSpace: "pre-wrap", overflowX: "hidden"
+              }}>
+                {r.analisis_cognitivo && (r.analisis_cognitivo.includes('<p>') || r.analisis_cognitivo.includes('<h1>')) ? (
+                  <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: r.analisis_cognitivo }} />
+                ) : (
+                  <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
+                )}
               </div>
             )}
 
@@ -639,7 +780,7 @@ function ReporteDetail() {
                     <X size={14} />
                   </button>
                 </div>
-                <div className="prose prose-invert max-w-none" style={{ fontSize: "13px", lineHeight: 1.6, color: "#cbd5e1" }}>
+                <div className="prose prose-invert max-w-none" style={{ fontSize: "13px", lineHeight: 1.6, color: "#cbd5e1", wordBreak: "break-word", whiteSpace: "pre-wrap", overflowX: "hidden" }}>
                   <ReactMarkdown>{validationResult}</ReactMarkdown>
                 </div>
               </div>
@@ -690,7 +831,7 @@ function ReporteDetail() {
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ flex: '1 1 auto', padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
             {messages.map((item, index) => {
               const isUser = item.role === "user";
               return (
@@ -736,7 +877,7 @@ function ReporteDetail() {
                 onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
                 disabled={isChatLoading}
                 placeholder="Pregunta sobre este reporte…"
-                style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
+                style={{ flex: '1 1 auto', background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
               />
               <button
                 onClick={handleValidarDictamen} disabled={isValidating}
