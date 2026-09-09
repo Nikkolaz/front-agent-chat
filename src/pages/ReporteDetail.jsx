@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getAuditoriaById, sendChatMessage, updateAnalisis, validateAnalisis } from "../services/auditService";
 import { 
   ArrowLeft, AlertTriangle, ShieldCheck, CheckCircle2, Loader2, Download,
@@ -620,7 +621,7 @@ function ReporteDetail() {
               />
             ) : (
               <div className="prose prose-invert max-w-none" style={{ fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", maxHeight: "400px", overflowY: "auto", paddingRight: "8px" }}>
-                <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{r.analisis_cognitivo}</ReactMarkdown>
               </div>
             )}
 
@@ -640,7 +641,7 @@ function ReporteDetail() {
                   </button>
                 </div>
                 <div className="prose prose-invert max-w-none" style={{ fontSize: "13px", lineHeight: 1.6, color: "#cbd5e1" }}>
-                  <ReactMarkdown>{validationResult}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{validationResult}</ReactMarkdown>
                 </div>
               </div>
             )}
@@ -703,7 +704,7 @@ function ReporteDetail() {
                     )
                   }}>
                     <div className="prose prose-invert max-w-none prose-sm">
-                      <ReactMarkdown>{item.text}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text}</ReactMarkdown>
                     </div>
                   </div>
                 </div>
