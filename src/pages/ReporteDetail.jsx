@@ -10,6 +10,7 @@ import {
   Building2, CalendarDays, DollarSign, TrendingUp, BarChart3, Cpu, MessageSquare, Send,
   Edit, Check, X
 } from 'lucide-react';
+import { getIndicadores016, buildReport016, renameSalud, fmtPct, PDF016_CSS } from "../utils/indicadores016";
 
 /* â”€â”€â”€ Generador de SVG Donut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function createDonutSvg(value, max, colorOk, colorFail, isOk) {
@@ -46,11 +47,11 @@ const Chip = ({ ok, children }) => (
   </span>
 );
 
-const MetricCard = ({ label, value, sub, ok }) => {
+const MetricCard = ({ label, value, sub, ok, isRawText = false }) => {
   const c = 2 * Math.PI * 40;
   const limit = 100;
-  const isNull = value == null || value === "";
-  const pct = isNull ? 0 : Math.max(0, Math.min((Number(value) / limit) * 100, 100));
+  const isNull = value == null || value === "" || value === "N/A";
+  const pct = isNull ? 0 : isRawText ? 100 : Math.max(0, Math.min((Number(value) / limit) * 100, 100));
   const off = c - (pct / 100) * c;
   
   let donutColor = "rgba(251,191,36,0.4)";
@@ -92,7 +93,7 @@ const MetricCard = ({ label, value, sub, ok }) => {
           <circle cx="50" cy="50" r="40" fill="none" stroke={donutColor} strokeWidth="10" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)" }}>{isNull ? "N/A" : `${value}%`}</span>
+          <span style={{ fontSize: isRawText ? "11px" : "16px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)" }}>{isNull ? "N/A" : isRawText ? value : fmtPct(value)}</span>
         </div>
       </div>
     </div>
@@ -172,7 +173,7 @@ function ReporteDetail() {
       setLoading(true);
       const data = await getAuditoriaById(id);
       if (data && data.analisis_cognitivo) {
-        let text = repairMarkdown(data.analisis_cognitivo);
+        let text = renameSalud(repairMarkdown(data.analisis_cognitivo));
         
         // Extracción dinámica de JSON (indicadores adicionales)
         const { metrics, cleanText } = extractMetricsFromJson(text);
@@ -299,20 +300,7 @@ function ReporteDetail() {
     let tableHtml;
 
     if (is016) {
-      const donutAdmin = createDonutSvg(r.porcentaje_administracion ?? 0, 12, "#16a34a", "#dc2626", r.limite_administracion_valido);
-      const donutCuota = createDonutSvg(r.porcentaje_cuota_monetaria ?? 0, 100, "#16a34a", "#dc2626", r.minimo_cuota_monetaria_valido);
-      metricsHtml = `
-        <div class="metric-card ${r.limite_administracion_valido ? "ok" : "fail"}">
-          <div class="metric-info"><div class="metric-label">Gastos administrativos</div><div class="metric-sub">Límite normativo máximo: 8%</div><div>${badge(r.limite_administracion_valido)}</div></div>
-          <div>${donutAdmin}</div>
-        </div>
-        <div class="metric-card ${r.minimo_cuota_monetaria_valido ? "ok" : "fail"}">
-          <div class="metric-info"><div class="metric-label">Cuota monetaria</div><div class="metric-sub">Límite normativo mínimo: 55%</div><div>${badge(r.minimo_cuota_monetaria_valido)}</div></div>
-          <div>${donutCuota}</div>
-        </div>`;
-      tableHtml = `
-        <tr><td>Gastos administrativos</td><td><strong>${r.porcentaje_administracion ?? 0}%</strong></td><td>Máx. 8%</td><td>${badge(r.limite_administracion_valido)}</td></tr>
-        <tr><td>Cuota monetaria</td><td><strong>${r.porcentaje_cuota_monetaria ?? 0}%</strong></td><td>Mín. 55%</td><td>${badge(r.minimo_cuota_monetaria_valido)}</td></tr>`;
+      ({ metricsHtml, tableHtml } = buildReport016(r));
     } else {
       const ecOk = r.ecuacion_contable_valida;
       const endPct = r.nivel_endeudamiento ?? 0;
@@ -395,6 +383,7 @@ function ReporteDetail() {
     .legal{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-top:32px;}
     .legal-title{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
     .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;font-weight:600;}
+${PDF016_CSS}
   </style>
 </head>
 <body>
@@ -444,24 +433,24 @@ function ReporteDetail() {
 
     <div class="section">
       <div class="section-num">03</div>
-      <div class="section-title">Resumen de indicadores</div>
-      <table>
+      <div class="section-title">${is016 ? "Detalle de indicadores" : "Resumen de indicadores"}</div>
+      ${is016 ? tableHtml : `<table>
         <thead><tr><th>Indicador</th><th>Resultado</th><th>Criterio</th><th>Estado</th></tr></thead>
         <tbody>
           ${tableHtml}
         </tbody>
-      </table>
+      </table>`}
     </div>
 
     <div class="section">
       <div class="section-num">04</div>
       <div class="section-title">Análisis cognitivo del sistema</div>
-      <div class="analysis" style="font-family: inherit;">${r.analisis_cognitivo || ''}</div>
+      <div class="analysis" style="font-family: inherit;">${renameSalud(r.analisis_cognitivo || '')}</div>
     </div>
 
     <div class="legal">
-      <div class="legal-title">âš  Nota de uso</div>
-      <p>Este informe preliminar contiene gráficas SVG inyectadas con datos reales (donuts) provenientes del análisis automatizado. No reemplaza la revisión formal.</p>
+      <div class="legal-title">Nota de uso</div>
+      <p>Este informe preliminar presenta los indicadores calculados automáticamente a partir de los archivos cargados. No reemplaza la revisión formal del auditor.</p>
     </div>
 
     <div class="footer">
@@ -474,15 +463,39 @@ function ReporteDetail() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank");
-    if (win) { win.document.write(html); win.document.close(); }
+    // Usar iframe oculto para compatibilidad con pywebview (window.open no funciona en .exe)
+    let printFrame = document.getElementById("pdf-print-frame");
+    if (!printFrame) {
+      printFrame = document.createElement("iframe");
+      printFrame.id = "pdf-print-frame";
+      printFrame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:none;";
+      document.body.appendChild(printFrame);
+    }
+    const doc = printFrame.contentDocument || printFrame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    // Esperar a que cargue y luego imprimir
+    printFrame.onload = () => {
+      try { printFrame.contentWindow.print(); }
+      catch(e) { 
+        // Fallback: abrir en nueva pestaña del navegador del sistema
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Auditoria_${r.nombre_ccf || "reporte"}_${r.id}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    };
   };
 
   if (loading) {
     return (
       <section className="fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px", color: "#A78BFA" }}>
         <Loader2 size={28} className="animate-spin" />
-        <span style={{ fontSize: "16px", fontWeight: 600 }}>Cargando reporteâ€¦</span>
+        <span style={{ fontSize: "16px", fontWeight: 600 }}>Cargando reporte…</span>
       </section>
     );
   }
@@ -619,22 +632,9 @@ function ReporteDetail() {
           <div style={{ display: "grid", gridTemplateColumns: dynamicMetrics && dynamicMetrics.length > 2 ? "repeat(auto-fill, minmax(280px, 1fr))" : "1fr 1fr", gap: "16px" }}>
             {is016 ? (
               <>
-                <MetricCard label="Gastos de Administración" value={r.porcentaje_administracion} sub="Límite: <= 8%" ok={r.limite_administracion_valido} />
-                <MetricCard label="Reducción Admón. FOSFEC" value={r.pct_fosfec} sub="Límite: 2% reducción" ok={null} />
-                <MetricCard label="FONIÑEZ" value={r.pct_foninez} sub="50% de la apropiación" ok={null} />
-                <MetricCard label="FOSFEC" value={r.pct_fosfec} sub="1-3% según CP/CN" ok={null} />
-                <MetricCard label="FOVIS" value={r.pct_fovis} sub="27-5% según CP/CN" ok={null} />
-                <MetricCard label="FOSYGA" value={r.pct_fosyga} sub="10% o 5% según CP/CN" ok={null} />
-                <MetricCard label="Promoción y Prevención en Salud" value={r.pct_salud} sub="Límite: 6.25%" ok={null} />
-                <MetricCard label="Contribución Supersubsidio" value={r.pct_supersub} sub="Límite: <= 1%" ok={null} />
-                <MetricCard label="Reserva Legal" value={r.pct_reserva} sub="Límite: <= 3%" ok={null} />
-                <MetricCard label="Subsidio Monetario" value={r.porcentaje_cuota_monetaria} sub="Límite: >= 55% del Subtotal" ok={r.minimo_cuota_monetaria_valido} />
-                <MetricCard label="Personas a cargo > 18 años FOSFEC" value={r.pct_personas_cargo} sub="Ley 789/02" ok={null} />
-                <MetricCard label="Subsidio por Transferencias" value={r.pct_transferencias} sub="Decreto 1769/03" ok={null} />
-                <MetricCard label="Educación" value={r.pct_educacion} sub="Límite: >= 10%" ok={null} />
-                <MetricCard label="Subsidio en Especie" value={r.pct_especie} sub="Ley 21/82" ok={null} />
-                <MetricCard label="Subsidio en Servicios" value={r.pct_servicios} sub="Ley 21/82" ok={null} />
-                <MetricCard label="Proyectos de Inversión" value={r.pct_inversion} sub="Ley 21/82" ok={null} />
+                {getIndicadores016(r).map((ind) => (
+                  <MetricCard key={ind.key} label={ind.label} value={ind.cardValue} sub={ind.cardSub} ok={ind.ok} isRawText={ind.tipo === "monto"} />
+                ))}
               </>
             ) : (
               <>
@@ -858,7 +858,7 @@ function ReporteDetail() {
                     <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#6366F1", animation: "fadeUp 1s ease-in-out 0.2s infinite" }} />
                     <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#6366F1", animation: "fadeUp 1s ease-in-out 0.4s infinite" }} />
                   </div>
-                  Analizandoâ€¦
+                  Analizando…
                 </div>
               </div>
             )}
