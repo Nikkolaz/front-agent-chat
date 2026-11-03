@@ -81,7 +81,7 @@ const MetricCard = ({ label, value, sub, ok, isRawText = false }) => {
           {isNull ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(251,191,36,0.15)", color: "#fbbf24", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>⚠</span> No verificado</span>
             ) : ok === null ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(59,130,246,0.15)", color: "#60a5fa", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>ℹ</span> Extraído</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(59,130,246,0.15)", color: "#60a5fa", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>ℹ</span> {isRawText ? "Solo valor" : "No verificado"}</span>
             ) : (
               <Chip ok={ok}>{ok ? "Cumple" : "No cumple"}</Chip>
             )}

@@ -26,6 +26,15 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
 // El indicador FOSYGA se llama ahora "Salud": se corrige también en textos ya guardados.
 export const renameSalud = (texto) => (texto ? String(texto).replace(/FOSYGA/gi, "Salud") : texto);
 
+// ───────── Reglas de cumplimiento ─────────
+// Tolerancia (en puntos porcentuales) para comparar contra un porcentaje legal exacto.
+const TOL = 0.05;
+// true/false si el porcentaje cumple la regla; null si no hay dato para evaluarla.
+const igualA = (p, valores) => (p === null ? null : valores.some((v) => Math.abs(p - v) <= TOL));
+const maximo = (p, tope) => (p === null ? null : p <= tope + 1e-9);
+// Solo se afirma "Cumple" cuando es demostrable; si no, null ("No verificado").
+const minimoDemostrable = (p, min) => (p !== null && p >= min ? true : null);
+
 export function getIndicadores016(r) {
   const pctItem = (n, key, label, cardSub, monto, pct, cuentas, base, criterio, ok = null) => ({
     n, key, label, tipo: "pct", monto: num(monto), pct: num(pct), cuentas, base, criterio, ok,
@@ -45,21 +54,26 @@ export function getIndicadores016(r) {
       r.porcentaje_administracion, "Cuenta 51 · Centro de costo Administración (01)", "Ley 789/02, Art. 18",
       "Máximo 8%", r.limite_administracion_valido),
     pctItem(2, "fosfec_red", "Reducción Admón. FOSFEC", "Límite: 2% reducción", r.fosfec_reduccion,
-      r.pct_fosfec_reduccion, "522005 + 552005", "Ley 789/02 Art. 6, mod. Art. 6 Ley 1636/13", "Reducción del gasto: 2%"),
+      r.pct_fosfec_reduccion, "522005 + 552005", "Ley 789/02 Art. 6, mod. Art. 6 Ley 1636/13", "Reducción del gasto: 2%",
+      igualA(num(r.pct_fosfec_reduccion), [2])),
     pctItem(3, "foninez", "FONIÑEZ", "50% de la apropiación", r.foninez, r.pct_foninez,
-      "520510 + 550510", "Art. 64 Ley 633/00", "50% de la apropiación"),
+      "520510 + 550510", "Art. 64 Ley 633/00", "50% de la apropiación (requiere la apropiación FOVIS; no se verifica)"),
     pctItem(4, "fosfec", "FOSFEC", "1-3% según CP/CN", r.fosfec, r.pct_fosfec,
-      "520520 + 550515", "Ley 789/02 Art. 6, mod. Art. 6 Ley 1636/13", "1%, 2% o 3% según cociente"),
+      "520520 + 550515", "Ley 789/02 Art. 6, mod. Art. 6 Ley 1636/13", "1%, 2% o 3% según cociente (no se verifica el cociente exacto)",
+      igualA(num(r.pct_fosfec), [1, 2, 3])),
     pctItem(5, "fovis", "FOVIS", "5-27% según CP/CN", r.fovis, r.pct_fovis,
-      "520505 + 550505", "Art. 63 Ley 633/00", "5%, 12%, 18% o 27% según cociente"),
+      "520505 + 550505", "Art. 63 Ley 633/00", "5%, 12%, 18% o 27% según cociente (no se verifica el cociente exacto)",
+      igualA(num(r.pct_fovis), [5, 12, 18, 27])),
     pctItem(6, "salud", "Salud", "5% - 10% según resolución", r.salud ?? r.fosyga, r.pct_salud ?? r.pct_fosyga,
-      "521005 + 551005", "Art. 217 Ley 100/93", "5% o 10% según cociente"),
+      "521005 + 551005", "Art. 217 Ley 100/93", "5% o 10% según cociente (no se verifica el cociente exacto)",
+      igualA(num(r.pct_salud ?? r.pct_fosyga), [5, 10])),
     pctItem(7, "promocion", "Promoción y Prevención en Salud", "Ley 1438 de 2011 (6.25%)", r.promocion_salud,
-      r.pct_promocion_salud, "522010 + 552010", "Art. 46 Ley 1438/11, mod. Art. 6 Ley 1636/13", "6,25%"),
+      r.pct_promocion_salud, "522010 + 552010", "Art. 46 Ley 1438/11, mod. Art. 6 Ley 1636/13", "6,25%",
+      igualA(num(r.pct_promocion_salud), [6.25])),
     pctItem(8, "supersub", "Contribución Supersubsidio", "Cuentas 523005 + 553005 (<= 1%)", r.supersub, r.pct_supersub,
-      "523005 + 553005", "Art. 19 Ley 25/81", "Máximo 1%"),
+      "523005 + 553005", "Art. 19 Ley 25/81", "Máximo 1%", maximo(num(r.pct_supersub), 1)),
     pctItem(9, "reserva", "Reserva Legal", "Límite: <= 3%", r.reserva, r.pct_reserva,
-      "523501 + 553501", "Art. 43 Ley 21/82", "Hasta 3%"),
+      "523501 + 553501", "Art. 43 Ley 21/82", "Hasta 3%", maximo(num(r.pct_reserva), 3)),
     montoItem(10, "cuota", "Cuota Monetaria", r.pago_cuota_monetaria, "610505",
       "Art. 43 Ley 21/82; Art. 3 Decreto 1769/03"),
     montoItem(11, "personas", "Personas a cargo > 18 años FOSFEC", r.personas_cargo, "610509",
@@ -67,13 +81,16 @@ export function getIndicadores016(r) {
     montoItem(12, "transferencias", "Subsidio por Transferencias (excedentes 55%)", r.transferencias, "610510",
       "Ley 789/02; Art. 5 Decreto 1769/03"),
     pctItem(13, "educacion", "Educación", "Límite: >= 10% del saldo", r.educacion, r.pct_educacion,
-      "521505 + 551505", "Ley 115/94 Art. 190; Decreto 1902/94 Art. 5", "Mínimo 10% del saldo de obras"),
-    pctItem(14, "especie", "Subsidio en Especie", r.especie ? `Suma CC: ${fmtCOP(r.especie)}` : "Suma de todos los Centros de Costo",
-      r.especie, r.pct_especie, "610610 · suma de todos los centros de costo", "Art. 43 Ley 21/82", "Informativo"),
-    pctItem(15, "servicios", "Subsidio en Servicios", "Ley 21/82", r.servicios, r.pct_servicios,
-      "615505 + 615510 + 615515", "Art. 43 Ley 21/82", "Informativo"),
-    pctItem(16, "inversion", "Proyectos de Inversión", "Ley 21/82", r.inversion, r.pct_inversion,
-      "614001 + 614305 + 614315 + 614601 + 614801 + 616001", "Art. 43 Ley 21/82", "Informativo"),
+      "521505 + 551505", "Ley 115/94 Art. 190; Decreto 1902/94 Art. 5",
+      "Mínimo 10% del saldo de obras (solo se confirma si ya supera 10% de los aportes)",
+      minimoDemostrable(num(r.pct_educacion), 10)),
+    // DESHABILITADO TEMPORALMENTE (indicadores 14, 15 y 16): descomentar para reactivar
+    // pctItem(14, "especie", "Subsidio en Especie", r.especie ? `Suma CC: ${fmtCOP(r.especie)}` : "Suma de todos los Centros de Costo",
+    //   r.especie, r.pct_especie, "610610 · suma de todos los centros de costo", "Art. 43 Ley 21/82", "Informativo"),
+    // pctItem(15, "servicios", "Subsidio en Servicios", "Ley 21/82", r.servicios, r.pct_servicios,
+    //   "615505 + 615510 + 615515", "Art. 43 Ley 21/82", "Informativo"),
+    // pctItem(16, "inversion", "Proyectos de Inversión", "Ley 21/82", r.inversion, r.pct_inversion,
+    //   "614001 + 614305 + 614315 + 614601 + 614801 + 616001", "Art. 43 Ley 21/82", "Informativo"),
   ];
 }
 
@@ -86,9 +103,10 @@ const claseDe = (ind) => {
   if (sinDato) return "warn";
   if (ind.ok === true) return "ok";
   if (ind.ok === false) return "fail";
-  return "info";
+  // Sin regla comprobable: los de solo valor van como "Solo valor"; los porcentuales como "No verificado".
+  return ind.tipo === "monto" ? "info" : "warn";
 };
-const textoEstado = { ok: "Cumple", fail: "No cumple", info: "Extraído", warn: "No verificado" };
+const textoEstado = { ok: "Cumple", fail: "No cumple", info: "Solo valor", warn: "No verificado" };
 const chip = (cls) => `<span class="chip ${cls}">${textoEstado[cls]}</span>`;
 
 function donut(pct, centro, color) {
@@ -217,9 +235,9 @@ export function buildReport016(r) {
     </table>
 
     <div class="legend">
-      <span>${chip("ok")} ${chip("fail")}</span><span>El indicador tiene un tope legal fijo y se evaluó automáticamente.</span>
-      <span>${chip("info")}</span><span>Valor extraído del reporte. Su porcentaje depende del cociente que fija la Superintendencia o no tiene tope fijo, por eso se muestra para revisión.</span>
-      <span>${chip("warn")}</span><span>El reporte no trae las cuentas necesarias para calcular el indicador.</span>
+      <span>${chip("ok")} ${chip("fail")}</span><span>El indicador se evaluó contra su regla legal (tope o porcentajes permitidos).</span>
+      <span>${chip("info")}</span><span>Indicador de solo valor: se muestra la cuenta, sin regla porcentual que evaluar.</span>
+      <span>${chip("warn")}</span><span>No se pudo comprobar: falta la cuenta en el reporte o la regla depende de datos que el reporte no trae (cociente CP/CN o saldo de obras).</span>
     </div>`;
 
   return { metricsHtml, tableHtml };
