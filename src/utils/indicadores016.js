@@ -80,11 +80,11 @@ export function getIndicadores016(r) {
       "Ley 789/02 Art. 6, mod. Art. 6 Ley 1636/13"),
     montoItem(12, "transferencias", "Subsidio por Transferencias (excedentes 55%)", r.transferencias, "610510",
       "Ley 789/02; Art. 5 Decreto 1769/03"),
-    pctItem(13, "educacion", "Educación", "Límite: >= 10% del saldo", r.educacion, r.pct_educacion,
-      "521505 + 551505", "Ley 115/94 Art. 190; Decreto 1902/94 Art. 5",
-      "Mínimo 10% del saldo de obras (solo se confirma si ya supera 10% de los aportes)",
-      minimoDemostrable(num(r.pct_educacion), 10)),
-    // DESHABILITADO TEMPORALMENTE (indicadores 14, 15 y 16): descomentar para reactivar
+    // DESHABILITADO TEMPORALMENTE (indicadores 13, 14, 15 y 16): descomentar para reactivar
+    // pctItem(13, "educacion", "Educación", "Límite: >= 10% del saldo", r.educacion, r.pct_educacion,
+    //   "521505 + 551505", "Ley 115/94 Art. 190; Decreto 1902/94 Art. 5",
+    //   "Mínimo 10% del saldo de obras (solo se confirma si ya supera 10% de los aportes)",
+    //   minimoDemostrable(num(r.pct_educacion), 10)),
     // pctItem(14, "especie", "Subsidio en Especie", r.especie ? `Suma CC: ${fmtCOP(r.especie)}` : "Suma de todos los Centros de Costo",
     //   r.especie, r.pct_especie, "610610 · suma de todos los centros de costo", "Art. 43 Ley 21/82", "Informativo"),
     // pctItem(15, "servicios", "Subsidio en Servicios", "Ley 21/82", r.servicios, r.pct_servicios,
