@@ -664,7 +664,7 @@ function Dashboard() {
           }}>Vista real</span>
         </div>
 
-        <div style={{ overflow: "hidden", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+        <div style={{ overflowX: "auto", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "14px" }}>
             <thead style={{ background: "rgba(255,255,255,0.04)" }}>
               <tr>
@@ -695,7 +695,7 @@ function Dashboard() {
                     onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"} 
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                   >
-                    <td style={{ padding: "16px 20px", fontWeight: 600, color: "#fff", whiteSpace: "nowrap" }}>{item.caja}</td>
+                    <td style={{ padding: "16px 20px", fontWeight: 600, color: "#fff", minWidth: "200px", maxWidth: "320px" }}>{item.caja}</td>
                     <td style={{ padding: "16px 20px", fontFamily: "monospace", color: "#CBD5E1" }}>{item.periodo}</td>
                     <td style={{ padding: "16px 20px" }}><EstadoChip cumple={item.cumple} /></td>
                     <td style={{ padding: "16px 20px", textAlign: "right", fontWeight: 700, color: item.admin <= 8 ? C.emerald : C.rose }}>{item.admin.toFixed(2)}%</td>

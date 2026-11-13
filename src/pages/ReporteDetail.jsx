@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
+import { marked } from "marked";
 import { getAuditoriaById, sendChatMessage, updateAnalisis, validateAnalisis } from "../services/auditService";
 import { 
   ArrowLeft, AlertTriangle, ShieldCheck, CheckCircle2, Loader2, Download,
   Building2, CalendarDays, DollarSign, TrendingUp, BarChart3, Cpu, MessageSquare, Send,
   Edit, Check, X
 } from 'lucide-react';
+import { getIndicadores016, buildReport016, renameSalud, fmtPct, PDF016_CSS } from "../utils/indicadores016";
 
 /* â”€â”€â”€ Generador de SVG Donut â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function createDonutSvg(value, max, colorOk, colorFail, isOk) {
@@ -44,34 +47,53 @@ const Chip = ({ ok, children }) => (
   </span>
 );
 
-const MetricCard = ({ label, value, sub, ok }) => {
+const MetricCard = ({ label, value, sub, ok, isRawText = false }) => {
   const c = 2 * Math.PI * 40;
-  const limit = label.includes("admin") ? 12 : 100;
-  const pct = Math.min((value / limit) * 100, 100);
+  const limit = 100;
+  const isNull = value == null || value === "" || value === "N/A";
+  const pct = isNull ? 0 : isRawText ? 100 : Math.max(0, Math.min((Number(value) / limit) * 100, 100));
   const off = c - (pct / 100) * c;
-  const donutColor = ok ? "#10b981" : "#f43f5e";
+  
+  let donutColor = "rgba(251,191,36,0.4)";
+    let borderColor = "rgba(251,191,36,0.2)";
+    let bgColor = "rgba(251,191,36,0.04)";
+    if (!isNull) {
+        if (ok === true) {
+            donutColor = "#10b981"; borderColor = "rgba(16,185,129,0.25)"; bgColor = "rgba(16,185,129,0.04)";
+        } else if (ok === false) {
+            donutColor = "#f43f5e"; borderColor = "rgba(244,63,94,0.25)"; bgColor = "rgba(244,63,94,0.04)";
+        } else {
+            donutColor = "#3b82f6"; borderColor = "rgba(59,130,246,0.25)"; bgColor = "rgba(59,130,246,0.04)";
+        }
+    }
 
   return (
     <div style={{
       borderRadius: "20px",
-      border: ok ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(244,63,94,0.25)",
-      background: ok ? "rgba(16,185,129,0.04)" : "rgba(244,63,94,0.04)",
+      border: `1px solid ${borderColor}`,
+      background: bgColor,
       padding: "24px", display: "flex", alignItems: "center", gap: "20px",
     }}>
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: "14px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>{label}</p>
+      <div style={{ flex: '1 1 auto', minWidth: 0, paddingRight: '10px' }}>
+        <p style={{ fontSize: "13px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)", wordWrap: "break-word" }}>{label}</p>
         <p style={{ fontSize: "12px", color: "#94A3B8", marginTop: "4px" }}>{sub}</p>
-        <div style={{ marginTop: "12px" }}><Chip ok={ok}>{ok ? "Cumple" : "No cumple"}</Chip></div>
+        <div style={{ marginTop: "12px" }}>
+          {isNull ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(251,191,36,0.15)", color: "#fbbf24", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>⚠</span> No verificado</span>
+            ) : ok === null ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(59,130,246,0.15)", color: "#60a5fa", padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}><span style={{ fontSize: "10px" }}>ℹ</span> {isRawText ? "Solo valor" : "No verificado"}</span>
+            ) : (
+              <Chip ok={ok}>{ok ? "Cumple" : "No cumple"}</Chip>
+            )}
+        </div>
       </div>
       <div style={{ position: "relative", width: "80px", height: "80px", flexShrink: 0 }}>
         <svg width="80" height="80" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-          <circle cx="50" cy="50" r="40" fill="none" stroke={donutColor} strokeWidth="10"
-            strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
-            transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
+          <circle cx="50" cy="50" r="40" fill="none" stroke={donutColor} strokeWidth="10" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)" }}>{value}%</span>
+          <span style={{ fontSize: isRawText ? "11px" : "16px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)" }}>{isNull ? "N/A" : isRawText ? value : fmtPct(value)}</span>
         </div>
       </div>
     </div>
@@ -85,13 +107,62 @@ const quickQuestions = [
   "¿Qué recomendaciones le darías a la Caja?",
 ];
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+const repairMarkdown = (text) => {
+  if (!text) return "";
+  let repaired = text;
+  
+  // Limpieza de emergencia si se guardó como HTML corrupto
+  if (repaired.includes("<p>") && repaired.includes("**")) {
+    repaired = repaired.replace(/<\/?p>/g, '\n\n').replace(/<br\s*\/?>/g, '\n');
+  }
+  
+  // Asegurar saltos de línea para títulos
+  repaired = repaired.replace(/###\s/g, '\n\n### ');
+  repaired = repaired.replace(/##\s/g, '\n\n## ');
+  
+  // Forzar salto antes de viñetas pegadas
+  repaired = repaired.replace(/ - \*\*/g, '\n- **');
+  
+  // Limpiar excesos de saltos de línea
+  repaired = repaired.replace(/\n{3,}/g, '\n\n');
+  
+  return repaired.trim();
+};
+
+const extractMetricsFromJson = (text) => {
+  if (!text) return { metrics: null, cleanText: "" };
+  
+  const regexWithTicks = /```(?:json)?\s*(\[\s*\{[\s\S]*?\}\s*\])\s*```/;
+  const regexRawArray = /(\[\s*\{\s*"label"[\s\S]*?\}\s*\])/;
+  
+  let match = text.match(regexWithTicks);
+  let isRaw = false;
+  
+  if (!match) {
+    match = text.match(regexRawArray);
+    isRaw = true;
+  }
+  
+  if (match) {
+    try {
+      const jsonStr = match[1];
+      const parsedMetrics = JSON.parse(jsonStr);
+      const cleanText = text.replace(match[0], "").trim();
+      return { metrics: parsedMetrics, cleanText };
+    } catch (e) {
+      console.error("Error parsing JSON metrics", e);
+    }
+  }
+  return { metrics: null, cleanText: text };
+};
+  
 function ReporteDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const chatEndRef = useRef(null);
 
   const [reporte, setReporte] = useState(null);
+  const [dynamicMetrics, setDynamicMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -101,6 +172,22 @@ function ReporteDetail() {
     async function load() {
       setLoading(true);
       const data = await getAuditoriaById(id);
+      if (data && data.analisis_cognitivo) {
+        let text = renameSalud(repairMarkdown(data.analisis_cognitivo));
+        
+        // Extracción dinámica de JSON (indicadores adicionales)
+        const { metrics, cleanText } = extractMetricsFromJson(text);
+        if (metrics) {
+          setDynamicMetrics(metrics);
+          text = cleanText; // Remover JSON del texto visible
+        }
+
+        // Parsear a HTML si viene en Markdown puro
+        if (text.includes("**") || text.includes("##") || !text.includes("<p>")) {
+           text = marked.parse(text);
+        }
+        data.analisis_cognitivo = text;
+      }
       setReporte(data);
       if (data) {
         setMessages([{
@@ -142,7 +229,12 @@ function ReporteDetail() {
   }, [validationResult]);
 
   const handleEditClick = () => {
-    setEditedAnalisis(reporte.analisis_cognitivo || "");
+    let rawContent = reporte.analisis_cognitivo || "";
+    // REPARADOR DE MARKDOWN: Aplicar limpieza universal por si el reporte está corrupto o sin saltos de línea
+    const textToParse = repairMarkdown(rawContent);
+
+    const initialHtml = marked.parse(textToParse);
+    setEditedAnalisis(initialHtml);
     setIsEditingDictamen(true);
   };
   
@@ -168,7 +260,8 @@ function ReporteDetail() {
     // Agregamos un mensaje de "cargando" opcional, o solo mostramos el spinner en el botón
     try {
       const res = await validateAnalisis(reporte.id);
-      setValidationResult(res.veredicto_validador);
+      const repairedVeredicto = repairMarkdown(res.veredicto_validador);
+      setValidationResult(repairedVeredicto);
       
       // Añadir la respuesta de SuperAudi directamente al chat
       setMessages(prev => [...prev, {
@@ -207,20 +300,7 @@ function ReporteDetail() {
     let tableHtml;
 
     if (is016) {
-      const donutAdmin = createDonutSvg(r.porcentaje_administracion ?? 0, 12, "#16a34a", "#dc2626", r.limite_administracion_valido);
-      const donutCuota = createDonutSvg(r.porcentaje_cuota_monetaria ?? 0, 100, "#16a34a", "#dc2626", r.minimo_cuota_monetaria_valido);
-      metricsHtml = `
-        <div class="metric-card ${r.limite_administracion_valido ? "ok" : "fail"}">
-          <div class="metric-info"><div class="metric-label">Gastos administrativos</div><div class="metric-sub">Límite normativo máximo: 8%</div><div>${badge(r.limite_administracion_valido)}</div></div>
-          <div>${donutAdmin}</div>
-        </div>
-        <div class="metric-card ${r.minimo_cuota_monetaria_valido ? "ok" : "fail"}">
-          <div class="metric-info"><div class="metric-label">Cuota monetaria</div><div class="metric-sub">Límite normativo mínimo: 55%</div><div>${badge(r.minimo_cuota_monetaria_valido)}</div></div>
-          <div>${donutCuota}</div>
-        </div>`;
-      tableHtml = `
-        <tr><td>Gastos administrativos</td><td><strong>${r.porcentaje_administracion ?? 0}%</strong></td><td>Máx. 8%</td><td>${badge(r.limite_administracion_valido)}</td></tr>
-        <tr><td>Cuota monetaria</td><td><strong>${r.porcentaje_cuota_monetaria ?? 0}%</strong></td><td>Mín. 55%</td><td>${badge(r.minimo_cuota_monetaria_valido)}</td></tr>`;
+      ({ metricsHtml, tableHtml } = buildReport016(r));
     } else {
       const ecOk = r.ecuacion_contable_valida;
       const endPct = r.nivel_endeudamiento ?? 0;
@@ -303,6 +383,7 @@ function ReporteDetail() {
     .legal{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-top:32px;}
     .legal-title{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
     .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;font-weight:600;}
+${PDF016_CSS}
   </style>
 </head>
 <body>
@@ -352,24 +433,24 @@ function ReporteDetail() {
 
     <div class="section">
       <div class="section-num">03</div>
-      <div class="section-title">Resumen de indicadores</div>
-      <table>
+      <div class="section-title">${is016 ? "Detalle de indicadores" : "Resumen de indicadores"}</div>
+      ${is016 ? tableHtml : `<table>
         <thead><tr><th>Indicador</th><th>Resultado</th><th>Criterio</th><th>Estado</th></tr></thead>
         <tbody>
           ${tableHtml}
         </tbody>
-      </table>
+      </table>`}
     </div>
 
     <div class="section">
       <div class="section-num">04</div>
       <div class="section-title">Análisis cognitivo del sistema</div>
-      <div class="analysis"><p>${(r.analisis_cognitivo || '').replace(/\n/g, "<br/>")}</p></div>
+      <div class="analysis" style="font-family: inherit;">${renameSalud(r.analisis_cognitivo || '')}</div>
     </div>
 
     <div class="legal">
-      <div class="legal-title">âš  Nota de uso</div>
-      <p>Este informe preliminar contiene gráficas SVG inyectadas con datos reales (donuts) provenientes del análisis automatizado. No reemplaza la revisión formal.</p>
+      <div class="legal-title">Nota de uso</div>
+      <p>Este informe preliminar presenta los indicadores calculados automáticamente a partir de los archivos cargados. No reemplaza la revisión formal del auditor.</p>
     </div>
 
     <div class="footer">
@@ -382,15 +463,39 @@ function ReporteDetail() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank");
-    if (win) { win.document.write(html); win.document.close(); }
+    // Usar iframe oculto para compatibilidad con pywebview (window.open no funciona en .exe)
+    let printFrame = document.getElementById("pdf-print-frame");
+    if (!printFrame) {
+      printFrame = document.createElement("iframe");
+      printFrame.id = "pdf-print-frame";
+      printFrame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:none;";
+      document.body.appendChild(printFrame);
+    }
+    const doc = printFrame.contentDocument || printFrame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    // Esperar a que cargue y luego imprimir
+    printFrame.onload = () => {
+      try { printFrame.contentWindow.print(); }
+      catch(e) { 
+        // Fallback: abrir en nueva pestaña del navegador del sistema
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Auditoria_${r.nombre_ccf || "reporte"}_${r.id}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    };
   };
 
   if (loading) {
     return (
       <section className="fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px", color: "#A78BFA" }}>
         <Loader2 size={28} className="animate-spin" />
-        <span style={{ fontSize: "16px", fontWeight: 600 }}>Cargando reporteâ€¦</span>
+        <span style={{ fontSize: "16px", fontWeight: 600 }}>Cargando reporte…</span>
       </section>
     );
   }
@@ -452,13 +557,13 @@ function ReporteDetail() {
         </button>
       </div>
 
-      {/* â”€â”€ Layout principal: métricas | chat â”€â”€ */}
-      <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "1fr", alignItems: "start" }}
+      {/* ── Layout principal: métricas | chat ── */}
+      <div style={{ display: "grid", gap: "24px", gridTemplateColumns: "1fr", alignItems: "start", minWidth: 0 }}
         className="lg-grid-detail"
       >
 
-        {/* â•â•â• COLUMNA IZQUIERDA: Métricas â•â•â• */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        {/* ═══ COLUMNA IZQUIERDA: Métricas ═══ */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", minWidth: 0 }}>
 
           {/* Dictamen banner */}
           <div style={{
@@ -523,12 +628,13 @@ function ReporteDetail() {
             ))}
           </div>
 
-          {/* Metric donuts — condicional por tipo de reporte */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          {/* Metric donuts — dinámicos o condicional por tipo de reporte */}
+          <div style={{ display: "grid", gridTemplateColumns: dynamicMetrics && dynamicMetrics.length > 2 ? "repeat(auto-fill, minmax(280px, 1fr))" : "1fr 1fr", gap: "16px" }}>
             {is016 ? (
               <>
-                <MetricCard label="Gastos administrativos" value={r.porcentaje_administracion ?? 0} sub="Límite normativo: máx 8%" ok={r.limite_administracion_valido} />
-                <MetricCard label="Cuota monetaria" value={r.porcentaje_cuota_monetaria ?? 0} sub="Límite normativo: mín 55%" ok={r.minimo_cuota_monetaria_valido} />
+                {getIndicadores016(r).map((ind) => (
+                  <MetricCard key={ind.key} label={ind.label} value={ind.cardValue} sub={ind.cardSub} ok={ind.ok} isRawText={ind.tipo === "monto"} />
+                ))}
               </>
             ) : (
               <>
@@ -543,18 +649,18 @@ function ReporteDetail() {
             borderRadius: "20px", padding: "24px",
             border: "1px solid rgba(124,58,237,0.2)",
             background: "linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(6,182,212,0.04) 100%)",
+            minWidth: 0
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div style={{ display: "flex", height: "36px", width: "36px", alignItems: "center", justifyContent: "center", borderRadius: "12px", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)" }}>
                 <Cpu size={18} color="#C4B5FD" />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: '1 1 auto', minWidth: '200px', paddingRight: '20px' }}>
                 <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>Análisis cognitivo IA</h4>
                 <p style={{ fontSize: "12px", color: "#A78BFA" }}>Dictamen generado al cargar el reporte</p>
               </div>
               
-              {!isEditingDictamen ? (
-                <>
+              {!isEditingDictamen ? (<div style={{display: 'flex', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap'}}>
                   <button 
                     onClick={handleValidarDictamen} disabled={isValidating}
                     style={{
@@ -578,9 +684,9 @@ function ReporteDetail() {
                   >
                     <Edit size={14} /> Editar
                   </button>
-                </>
+                </div>
               ) : (
-                <>
+                <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
                   <button 
                     onClick={handleSaveAnalisis} disabled={isUpdating}
                     style={{
@@ -604,24 +710,58 @@ function ReporteDetail() {
                   >
                     <X size={14} /> Cancelar
                   </button>
-                </>
+                </div>
               )}
             </div>
             
             {isEditingDictamen ? (
-              <textarea
-                value={editedAnalisis}
-                onChange={(e) => setEditedAnalisis(e.target.value)}
-                style={{
-                  width: "100%", minHeight: "300px",
-                  background: "rgba(0,0,0,0.2)", border: "1px solid rgba(124,58,237,0.4)",
-                  borderRadius: "12px", padding: "16px", color: "#e2e8f0",
-                  fontSize: "14px", lineHeight: 1.7, outline: "none", resize: "vertical"
-                }}
-              />
+              <div style={{ 
+                background: "#f8fafc", 
+                color: "#0f172a", 
+                borderRadius: "12px", 
+                overflow: "hidden", 
+                border: "1px solid rgba(124,58,237,0.4)",
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box"
+              }}>
+                <style>
+                  {`
+                    .ql-editor {
+                      word-break: break-word;
+                      white-space: pre-wrap;
+                      overflow-x: hidden;
+                    }
+                  `}
+                </style>
+                <ReactQuill
+                  theme="snow"
+                  value={editedAnalisis}
+                  onChange={setEditedAnalisis}
+                  style={{ minHeight: "300px" }}
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'color': [] }, { 'background': [] }],
+                      [{ 'align': [] }],
+                      ['clean']
+                    ]
+                  }}
+                />
+              </div>
             ) : (
-              <div className="prose prose-invert max-w-none" style={{ fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", maxHeight: "400px", overflowY: "auto", paddingRight: "8px" }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{r.analisis_cognitivo}</ReactMarkdown>
+              <div className="prose prose-invert max-w-none" style={{ 
+                fontSize: "14px", lineHeight: 1.7, color: "#CBD5E1", 
+                maxHeight: "400px", overflowY: "auto", paddingRight: "8px",
+                wordBreak: "break-word", whiteSpace: "pre-wrap", overflowX: "hidden"
+              }}>
+                {r.analisis_cognitivo && (r.analisis_cognitivo.includes('<p>') || r.analisis_cognitivo.includes('<h1>')) ? (
+                  <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: r.analisis_cognitivo }} />
+                ) : (
+                  <ReactMarkdown>{r.analisis_cognitivo}</ReactMarkdown>
+                )}
               </div>
             )}
 
@@ -640,8 +780,8 @@ function ReporteDetail() {
                     <X size={14} />
                   </button>
                 </div>
-                <div className="prose prose-invert max-w-none" style={{ fontSize: "13px", lineHeight: 1.6, color: "#cbd5e1" }}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{validationResult}</ReactMarkdown>
+                <div className="prose prose-invert max-w-none" style={{ fontSize: "13px", lineHeight: 1.6, color: "#cbd5e1", wordBreak: "break-word", whiteSpace: "pre-wrap", overflowX: "hidden" }}>
+                  <ReactMarkdown>{validationResult}</ReactMarkdown>
                 </div>
               </div>
             )}
@@ -691,7 +831,7 @@ function ReporteDetail() {
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ flex: '1 1 auto', padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
             {messages.map((item, index) => {
               const isUser = item.role === "user";
               return (
@@ -704,7 +844,7 @@ function ReporteDetail() {
                     )
                   }}>
                     <div className="prose prose-invert max-w-none prose-sm">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text}</ReactMarkdown>
+                      <ReactMarkdown>{item.text}</ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -718,7 +858,7 @@ function ReporteDetail() {
                     <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#6366F1", animation: "fadeUp 1s ease-in-out 0.2s infinite" }} />
                     <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#6366F1", animation: "fadeUp 1s ease-in-out 0.4s infinite" }} />
                   </div>
-                  Analizandoâ€¦
+                  Analizando…
                 </div>
               </div>
             )}
@@ -737,7 +877,7 @@ function ReporteDetail() {
                 onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
                 disabled={isChatLoading}
                 placeholder="Pregunta sobre este reporte…"
-                style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
+                style={{ flex: '1 1 auto', background: "transparent", border: "none", color: "#fff", fontSize: "14px", outline: "none" }}
               />
               <button
                 onClick={handleValidarDictamen} disabled={isValidating}

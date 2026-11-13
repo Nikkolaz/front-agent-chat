@@ -454,40 +454,6 @@ function Cargar() {
 
             return (
               <div className="space-y-6">
-                {/* Metrics */}
-                <div className="grid gap-6 md:grid-cols-2">
-                  {(is016 ? [
-                    { label: "Gastos administrativos", sub: "Límite: máx 8%", value: rc.porcentaje_administracion || 0, ok: rc.limite_administracion_valido, limit: 12, donutColor: rc.limite_administracion_valido ? "#10b981" : "#f43f5e", displayValue: `${rc.porcentaje_administracion || 0}%` },
-                    { label: "Cuota monetaria", sub: "Límite: mín 55%", value: rc.porcentaje_cuota_monetaria || 0, ok: rc.minimo_cuota_monetaria_valido, limit: 100, donutColor: rc.minimo_cuota_monetaria_valido ? "#10b981" : "#f43f5e", displayValue: `${rc.porcentaje_cuota_monetaria || 0}%` },
-                  ] : [
-                    { label: "Nivel de Endeudamiento", sub: "Pasivo / Activo", value: rc.nivel_endeudamiento || 0, ok: true, limit: 100, donutColor: "#3b82f6", displayValue: `${rc.nivel_endeudamiento || 0}%` },
-                    { label: "Ecuación Contable", sub: "Activo = Pasivo + Patrimonio", value: rc.ecuacion_contable_valida ? 100 : 0, ok: rc.ecuacion_contable_valida, limit: 100, donutColor: rc.ecuacion_contable_valida ? "#10b981" : "#f43f5e", displayValue: rc.ecuacion_contable_valida ? "Válida" : "No cuadra" },
-                  ]).map((m) => {
-                    const pct = Math.min((m.value / m.limit) * 100, 100);
-                    const c = 2 * Math.PI * 40;
-                    const off = c - (pct / 100) * c;
-                    return (
-                      <div key={m.label} style={{ borderRadius: "24px", border: m.ok ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(244,63,94,0.3)", background: m.ok ? "rgba(16,185,129,0.05)" : "rgba(244,63,94,0.05)", padding: "28px", display: "flex", alignItems: "center", gap: "24px" }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                            <p style={{ fontSize: "16px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>{m.label}</p>
-                          </div>
-                          <p style={{ fontSize: "13px", color: "#94A3B8", marginBottom: "12px" }}>{m.sub}</p>
-                          <Chip ok={m.ok}>{m.ok ? "Cumple" : "No cumple"}</Chip>
-                        </div>
-                        <div style={{ position: "relative", width: "100px", height: "100px" }}>
-                          <svg width="100" height="100" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-                            <circle cx="50" cy="50" r="40" fill="none" stroke={m.donutColor} strokeWidth="10" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
-                          </svg>
-                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontSize: m.displayValue.length > 5 ? "13px" : "20px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)", textAlign: "center" }}>{m.displayValue}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
 
                 {/* Individual analysis */}
                 <div style={{ borderRadius: "20px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: "24px" }}>
@@ -589,38 +555,6 @@ function Cargar() {
             </div>
           </div>
 
-          {/* Metrics */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {(auditResult.reporte_origen?.tipo_reporte !== '015A' ? [
-              { label: "Gastos administrativos", sub: "Límite: máx 8%", value: r.porcentaje_administracion || 0, ok: r.limite_administracion_valido, limit: 12, donutColor: r.limite_administracion_valido ? "#10b981" : "#f43f5e", displayValue: `${r.porcentaje_administracion || 0}%` },
-              { label: "Cuota monetaria", sub: "Límite: mín 55%", value: r.porcentaje_cuota_monetaria || 0, ok: r.minimo_cuota_monetaria_valido, limit: 100, donutColor: r.minimo_cuota_monetaria_valido ? "#10b981" : "#f43f5e", displayValue: `${r.porcentaje_cuota_monetaria || 0}%` },
-            ] : [
-              { label: "Nivel de Endeudamiento", sub: "Pasivo / Activo", value: r.nivel_endeudamiento || 0, ok: true, limit: 100, donutColor: "#3b82f6", displayValue: `${r.nivel_endeudamiento || 0}%` },
-              { label: "Ecuación Contable", sub: "Activo = Pasivo + Patrimonio", value: r.ecuacion_contable_valida ? 100 : 0, ok: r.ecuacion_contable_valida, limit: 100, donutColor: r.ecuacion_contable_valida ? "#10b981" : "#f43f5e", displayValue: r.ecuacion_contable_valida ? "Válida" : "No cuadra" },
-            ]).map((m) => {
-              const pct = Math.min((m.value / m.limit) * 100, 100);
-              const c = 2 * Math.PI * 40;
-              const off = c - (pct / 100) * c;
-              return (
-                <div key={m.label} style={{ borderRadius: "24px", border: m.ok ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(244,63,94,0.3)", background: m.ok ? "rgba(16,185,129,0.05)" : "rgba(244,63,94,0.05)", padding: "28px", display: "flex", alignItems: "center", gap: "24px" }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: "16px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-heading)" }}>{m.label}</p>
-                    <p style={{ fontSize: "13px", color: "#94A3B8", marginTop: "4px", marginBottom: "12px" }}>{m.sub}</p>
-                    <Chip ok={m.ok}>{m.ok ? "Cumple" : "No cumple"}</Chip>
-                  </div>
-                  <div style={{ position: "relative", width: "100px", height: "100px" }}>
-                    <svg width="100" height="100" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-                      <circle cx="50" cy="50" r="40" fill="none" stroke={m.donutColor} strokeWidth="10" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 1s ease-out" }} />
-                    </svg>
-                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: m.displayValue.length > 5 ? "13px" : "20px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-heading)", textAlign: "center" }}>{m.displayValue}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
           {/* Cognitive analysis */}
           <div style={{ borderRadius: "24px", border: "1px solid rgba(124,58,237,0.3)", background: "linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(6,182,212,0.05) 100%)", padding: "32px" }}>
